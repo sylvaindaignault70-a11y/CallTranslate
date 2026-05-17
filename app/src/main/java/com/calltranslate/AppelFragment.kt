@@ -11,7 +11,6 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
-import android.provider.ContactsContract
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -32,8 +31,6 @@ class AppelFragment : Fragment() {
         private const val SAMPLE_RATE = 44100
     }
 
-    private var selectedTel = ""
-    private var pendingTel  = ""
     private val log = StringBuilder()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -42,8 +39,6 @@ class AppelFragment : Fragment() {
     private lateinit var btnTrad: Button
     private lateinit var btnCallRec: Button
     private lateinit var tvStatus: TextView
-    private lateinit var tvNum: TextView
-    private lateinit var etNumero: EditText
     private lateinit var tvCallOriginal: TextView
     private lateinit var tvCallResult: TextView
 
@@ -51,17 +46,6 @@ class AppelFragment : Fragment() {
     private var isRecording = false
     private val pcmChunks = mutableListOf<ByteArray>()
     private var pendingBitmap: Bitmap? = null
-
-    private val requestCallPerm = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        if (granted && pendingTel.isNotEmpty()) { dialNow(pendingTel); pendingTel = "" }
-        else if (!granted) Toast.makeText(requireContext(), "Permission appel refusée", Toast.LENGTH_SHORT).show()
-    }
-
-    private val pickContact = registerForActivityResult(
-        ActivityResultContracts.PickContact()
-    ) { uri -> uri?.let { loadContact(it) } }
 
     private val saveWavLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("audio/wav")
@@ -104,8 +88,6 @@ class AppelFragment : Fragment() {
         btnTrad        = v.findViewById(R.id.btnCallTrad)
         btnCallRec     = v.findViewById(R.id.btnCallRec)
         tvStatus       = v.findViewById(R.id.tvCallStatus)
-        tvNum          = v.findViewById(R.id.tvContactNum)
-        etNumero       = v.findViewById(R.id.etNumero)
         tvCallOriginal = v.findViewById(R.id.tvCallOriginal)
         tvCallResult   = v.findViewById(R.id.tvCallResult)
 
@@ -138,13 +120,7 @@ class AppelFragment : Fragment() {
         btnCallRec.setOnClickListener { toggleRec() }
         v.findViewById<Button>(R.id.btnCallCapture).setOnClickListener { takeScreenshot() }
         v.findViewById<Button>(R.id.btnCallSave).setOnClickListener   { showSaveDialog() }
-        v.findViewById<Button>(R.id.btnContacts).setOnClickListener   { pickContact.launch(null) }
-        v.findViewById<Button>(R.id.btnVider).setOnClickListener      { vider() }
-        v.findViewById<Button>(R.id.btnQuitter).setOnClickListener    { requireActivity().finishAndRemoveTask() }
-        v.findViewById<Button>(R.id.btnSignaler).setOnClickListener {
-            val num = etNumero.text.toString().trim().ifEmpty { selectedTel }
-            if (num.isNotEmpty()) signaler(num)
-        }
+        v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { raccrocher() }
 
         updateTradUI()
     }
@@ -289,51 +265,14 @@ class AppelFragment : Fragment() {
         return out.toByteArray()
     }
 
-    private fun loadContact(uri: Uri) {
-        val ctx = requireContext()
-        val contactId = ctx.contentResolver.query(
-            uri, arrayOf(ContactsContract.Contacts._ID), null, null, null
-        )?.use { c ->
-            if (c.moveToFirst()) c.getLong(c.getColumnIndexOrThrow(ContactsContract.Contacts._ID)).toString()
-            else null
-        } ?: return
-
-        ctx.contentResolver.query(
-            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                    ContactsContract.CommonDataKinds.Phone.NUMBER),
-            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
-            arrayOf(contactId), null
-        )?.use {
-            if (it.moveToFirst()) {
-                val name = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
-                val tel  = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
-                if (tel.isNotEmpty()) {
-                    selectedTel = tel.replace("\\s".toRegex(), "")
-                    tvNum.text = "📞 $name — $tel  (appuie Signaler)"
-                }
+    private fun raccrocher() {
+        try {
+            val tm = requireContext().getSystemService(android.telecom.TelecomManager::class.java)
+            if (android.os.Build.VERSION.SDK_INT >= 28 &&
+                requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                tm?.endCall()
             }
-        }
-    }
-
-    private fun signaler(tel: String) {
-        val ctx = requireContext()
-        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
-            dialNow(tel)
-        } else {
-            pendingTel = tel
-            requestCallPerm.launch(Manifest.permission.CALL_PHONE)
-        }
-    }
-
-    private fun dialNow(tel: String) {
-        startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$tel")))
-    }
-
-    private fun vider() {
-        selectedTel = ""
-        tvNum.text = ""
-        etNumero.text?.clear()
+        } catch (e: Exception) { }
     }
 
     private fun timestamp() = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())

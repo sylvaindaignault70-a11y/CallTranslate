@@ -145,7 +145,7 @@ class TraductionFragment : Fragment() {
     private fun dbg(msg: String) {
         val line = "[${timestamp()}] $msg\n"
         Log.d("CT_SPEECH", msg)
-        requireActivity().runOnUiThread {
+        if (isAdded) activity?.runOnUiThread {
             debugLog.append(line)
             tvDebugLog.text = debugLog
             scrollDebug.post { scrollDebug.fullScroll(android.view.View.FOCUS_DOWN) }
@@ -200,7 +200,7 @@ class TraductionFragment : Fragment() {
             override fun onReadyForSpeech(p: Bundle?) { dbg("🟢 READY locale=$srLocale isMe=$isMe") }
             override fun onBeginningOfSpeech() { dbg("🔴 SPEECH DETECTED") }
             override fun onRmsChanged(v: Float) {
-                requireActivity().runOnUiThread { tvDebugRms.text = "%.1f".format(v) }
+                if (isAdded) activity?.runOnUiThread { tvDebugRms.text = "%.1f".format(v) }
             }
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() { dbg("⏹ END OF SPEECH") }
