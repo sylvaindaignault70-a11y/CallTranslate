@@ -41,6 +41,9 @@ class AppelFragment : Fragment() {
     private lateinit var tvStatus: TextView
     private lateinit var tvCallOriginal: TextView
     private lateinit var tvCallResult: TextView
+    private lateinit var tvAppelDebugLog: TextView
+    private lateinit var scrollAppelDebug: android.widget.ScrollView
+    private val appelDebugLog = StringBuilder()
 
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
@@ -100,16 +103,28 @@ class AppelFragment : Fragment() {
         spinMoi.setSelection(LANGS_MOI.indexOfFirst { it.first == prefs.getString("callLangMoi", "fr") }.coerceAtLeast(0))
         spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "auto") }.coerceAtLeast(0))
 
+        tvAppelDebugLog = v.findViewById(R.id.tvAppelDebugLog)
+        scrollAppelDebug = v.findViewById(R.id.scrollAppelDebug)
+        v.findViewById<Button>(R.id.btnAppelDebugClear).setOnClickListener {
+            appelDebugLog.clear(); tvAppelDebugLog.text = ""
+        }
+
+        dbg("🐛 Appel V2 prêt — ouvre avant d'appeler")
+
         TranslationService.onStatus = { status ->
+            dbg("📡 STATUS: $status")
             if (isAdded) activity?.runOnUiThread { tvStatus.text = status }
         }
         TranslationService.onPartial = { partial ->
+            dbg("〜 PARTIAL: $partial")
             if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = "... $partial" }
         }
         TranslationService.onOriginal = { text ->
+            dbg("🎤 ORIGINAL: $text")
             if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = text }
         }
         TranslationService.onTranslated = { trad ->
+            dbg("🌐 TRAD: $trad")
             if (isAdded) activity?.runOnUiThread {
                 tvCallResult.text = trad
                 log.append("[${timestamp()}] $trad\n")
@@ -263,6 +278,15 @@ class AppelFragment : Fragment() {
         out.write((channels * bitsPerSample / 8).toShort().le2()); out.write(bitsPerSample.toShort().le2())
         out.write("data".toByteArray()); out.write(pcm.size.le4()); out.write(pcm)
         return out.toByteArray()
+    }
+
+    private fun dbg(msg: String) {
+        android.util.Log.d("CT_APPEL", msg)
+        if (isAdded) activity?.runOnUiThread {
+            appelDebugLog.append("[${timestamp()}] $msg\n")
+            tvAppelDebugLog.text = appelDebugLog
+            scrollAppelDebug.post { scrollAppelDebug.fullScroll(android.view.View.FOCUS_DOWN) }
+        }
     }
 
     private fun raccrocher() {

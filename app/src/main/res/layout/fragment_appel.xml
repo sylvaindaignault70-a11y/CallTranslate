@@ -98,8 +98,28 @@
             android:layout_width="match_parent" android:layout_height="48dp"
             android:text="💾 Sauvegarder" android:backgroundTint="#1a1a2e" android:textColor="#06b6d4"
             android:gravity="start|center_vertical" android:paddingStart="16dp"
-            android:layout_marginTop="8dp"
-                android:maxLines="1"/>
+            android:layout_marginTop="8dp" android:maxLines="1"/>
+
+        <!-- DEBUG panel -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginTop="12dp" android:layout_marginBottom="4dp"
+            android:gravity="center_vertical">
+            <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="🐛 DEBUG" android:textColor="#f59e0b" android:textSize="12sp" android:textStyle="bold"/>
+            <Button android:id="@+id/btnAppelDebugClear"
+                android:layout_width="wrap_content" android:layout_height="30dp"
+                android:text="Effacer" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
+                android:textSize="10sp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
+        </LinearLayout>
+
+        <ScrollView android:id="@+id/scrollAppelDebug"
+            android:layout_width="match_parent" android:layout_height="200dp"
+            android:background="#0f0f1a" android:padding="8dp">
+            <TextView android:id="@+id/tvAppelDebugLog"
+                android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="" android:textColor="#94a3b8" android:textSize="11sp"
+                android:fontFamily="monospace" android:lineSpacingExtra="3dp"/>
+        </ScrollView>
 
     </LinearLayout>
 </ScrollView>
