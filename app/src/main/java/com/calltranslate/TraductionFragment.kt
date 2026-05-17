@@ -130,6 +130,8 @@ class TraductionFragment : Fragment() {
 
         tts = TextToSpeech(requireContext()) {}
 
+        dbg("🐛 DEBUG prêt — appuie MOI ou L'AUTRE")
+
         btnMoi.setOnClickListener   { startListen(true) }
         btnAutre.setOnClickListener { startListen(false) }
         btnStop.setOnClickListener  { stopAndSave() }
