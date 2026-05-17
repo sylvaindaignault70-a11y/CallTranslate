@@ -117,10 +117,14 @@ class TraductionFragment : Fragment() {
                 scope.launch {
                     val trad = translate(text, from, to)
                     requireActivity().runOnUiThread {
-                        tvResult.text = trad
-                        tvStatus.text = "✓"
-                        speak(trad, to)
-                        log.add("[${timestamp()}] ${if(isMe) "MOI" else "AUTRE"}: $text → $trad")
+                        if (trad.isNotBlank()) {
+                            tvResult.text = trad
+                            tvStatus.text = "✓"
+                            speak(trad, to)
+                            log.add("[${timestamp()}] ${if(isMe) "MOI" else "AUTRE"}: $text → $trad")
+                        } else {
+                            tvStatus.text = "⚠ Traduction échouée (réseau?)"
+                        }
                     }
                 }
                 if (listening) startListen(isMe)
@@ -173,7 +177,7 @@ class TraductionFragment : Fragment() {
             val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=$q"
             val raw = URL(url).readText()
             JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
-        } catch (e: Exception) { text }
+        } catch (e: Exception) { "" }
     }
 
     private fun toggleRec() {

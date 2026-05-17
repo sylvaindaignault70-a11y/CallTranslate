@@ -71,8 +71,9 @@ class AppelFragment : Fragment() {
         btnTrad.setOnClickListener { toggleTrad() }
         v.findViewById<Button>(R.id.btnContacts).setOnClickListener { pickContact.launch(null) }
         v.findViewById<Button>(R.id.btnVider).setOnClickListener { vider() }
+        v.findViewById<Button>(R.id.btnQuitter).setOnClickListener { requireActivity().finishAndRemoveTask() }
         v.findViewById<Button>(R.id.btnSignaler).setOnClickListener {
-            val num = etNumero.text.toString().trim()
+            val num = etNumero.text.toString().trim().ifEmpty { selectedTel }
             if (num.isNotEmpty()) signaler(num)
         }
 
