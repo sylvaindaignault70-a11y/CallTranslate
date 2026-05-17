@@ -20,7 +20,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:gravity="center"
-            android:layout_marginBottom="16dp"/>
+            android:layout_marginBottom="12dp"/>
 
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:layout_marginBottom="8dp" android:gravity="center_vertical">
@@ -31,36 +31,79 @@
         </LinearLayout>
 
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="16dp" android:gravity="center_vertical">
+            android:orientation="horizontal" android:layout_marginBottom="12dp" android:gravity="center_vertical">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
                 android:text="AUTRE" android:textColor="#94a3b8" android:textSize="11sp" android:minWidth="48dp"/>
             <Spinner android:id="@+id/spinTradOther" android:layout_width="0dp" android:layout_height="44dp"
                 android:layout_weight="1" android:background="#0f0f1a"/>
         </LinearLayout>
 
+        <!-- Boutons principaux -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="12dp">
+            android:orientation="horizontal" android:layout_marginBottom="6dp">
             <Button android:id="@+id/btnMoi"
                 android:layout_width="0dp" android:layout_height="52dp" android:layout_weight="1"
                 android:text="🎤 MOI" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
-                android:layout_marginEnd="6dp"
-                android:maxLines="1"/>
+                android:layout_marginEnd="6dp" android:maxLines="1"/>
             <Button android:id="@+id/btnAutre"
                 android:layout_width="0dp" android:layout_height="52dp" android:layout_weight="1"
-                android:text="👂 L'AUTRE" android:backgroundTint="#06b6d4" android:textColor="#ffffff"
-                android:layout_marginEnd="6dp"
-                android:maxLines="1"/>
+                android:text="👂 AUTRE" android:backgroundTint="#06b6d4" android:textColor="#ffffff"
+                android:layout_marginEnd="6dp" android:maxLines="1"/>
             <Button android:id="@+id/btnStop"
                 android:layout_width="wrap_content" android:layout_height="52dp"
                 android:text="⏹" android:backgroundTint="#1a1a2e" android:textColor="#ef4444"
                 android:maxLines="1"/>
         </LinearLayout>
 
-        <TextView android:id="@+id/tvTradStatus"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:text="Appuie MOI ou L'AUTRE" android:textColor="#64748b"
-            android:textSize="12sp" android:gravity="center" android:layout_marginBottom="12dp"/>
+        <!-- Raccrocher -->
+        <Button android:id="@+id/btnRaccrocher"
+            android:layout_width="match_parent" android:layout_height="44dp"
+            android:text="📵 Raccrocher" android:backgroundTint="#7f1d1d" android:textColor="#fca5a5"
+            android:layout_marginBottom="8dp" android:maxLines="1"/>
 
+        <!-- Status + RMS sur même ligne -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="8dp" android:gravity="center_vertical">
+            <TextView android:id="@+id/tvTradStatus"
+                android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                android:text="Appuie MOI ou L'AUTRE" android:textColor="#64748b"
+                android:textSize="12sp"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="RMS:" android:textColor="#64748b" android:textSize="11sp"
+                android:layout_marginStart="8dp"/>
+            <TextView android:id="@+id/tvDebugRms"
+                android:layout_width="40dp" android:layout_height="wrap_content"
+                android:text="0.0" android:textColor="#f59e0b" android:textSize="11sp"
+                android:gravity="end"/>
+        </LinearLayout>
+
+        <!-- Debug log toujours visible -->
+        <LinearLayout android:id="@+id/layoutDebug"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#0a0a14" android:padding="8dp" android:layout_marginBottom="8dp">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="🐛 DEBUG" android:textColor="#f59e0b" android:textSize="11sp"
+                    android:textStyle="bold"/>
+                <Button android:id="@+id/btnDebugClear"
+                    android:layout_width="wrap_content" android:layout_height="28dp"
+                    android:text="Effacer" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
+                    android:textSize="10sp" android:paddingStart="8dp" android:paddingEnd="8dp"/>
+            </LinearLayout>
+
+            <ScrollView android:id="@+id/scrollDebug"
+                android:layout_width="match_parent" android:layout_height="160dp">
+                <TextView android:id="@+id/tvDebugLog"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="" android:textColor="#94a3b8" android:textSize="10sp"
+                    android:fontFamily="monospace" android:lineSpacingExtra="2dp"/>
+            </ScrollView>
+        </LinearLayout>
+
+        <!-- Cases MOI / TRADUCTION -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:layout_marginBottom="8dp">
 
@@ -91,46 +134,13 @@
             android:layout_width="match_parent" android:layout_height="44dp"
             android:text="⏺ Rec" android:backgroundTint="#ef4444" android:textColor="#ffffff"
             android:gravity="start|center_vertical" android:paddingStart="16dp"
-            android:layout_marginTop="12dp"
-                android:maxLines="1"/>
+            android:layout_marginTop="4dp" android:maxLines="1"/>
 
         <Button android:id="@+id/btnSaveText"
             android:layout_width="match_parent" android:layout_height="48dp"
             android:text="💾 Sauvegarder" android:backgroundTint="#1a1a2e" android:textColor="#06b6d4"
             android:gravity="start|center_vertical" android:paddingStart="16dp"
-            android:layout_marginTop="8dp"
-                android:maxLines="1"/>
-
-        <Button android:id="@+id/btnDebugToggle"
-            android:layout_width="match_parent" android:layout_height="36dp"
-            android:text="🐛 DEBUG" android:backgroundTint="#1a1a2e" android:textColor="#f59e0b"
-            android:textSize="11sp" android:layout_marginTop="8dp" android:maxLines="1"/>
-
-        <LinearLayout android:id="@+id/layoutDebug"
-            android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="vertical" android:visibility="gone"
-            android:background="#0a0a14" android:padding="8dp" android:layout_marginTop="4dp">
-
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                android:orientation="horizontal" android:layout_marginBottom="4dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                    android:text="🎙 RMS: " android:textColor="#64748b" android:textSize="11sp"/>
-                <TextView android:id="@+id/tvDebugRms"
-                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
-                    android:text="0.0" android:textColor="#f59e0b" android:textSize="11sp"/>
-                <Button android:id="@+id/btnDebugClear"
-                    android:layout_width="wrap_content" android:layout_height="28dp"
-                    android:text="Effacer" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
-                    android:textSize="10sp" android:paddingStart="8dp" android:paddingEnd="8dp"/>
-            </LinearLayout>
-
-            <ScrollView android:layout_width="match_parent" android:layout_height="200dp">
-                <TextView android:id="@+id/tvDebugLog"
-                    android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="" android:textColor="#94a3b8" android:textSize="10sp"
-                    android:fontFamily="monospace" android:lineSpacingExtra="2dp"/>
-            </ScrollView>
-        </LinearLayout>
+            android:layout_marginTop="8dp" android:maxLines="1"/>
 
     </LinearLayout>
 </ScrollView>

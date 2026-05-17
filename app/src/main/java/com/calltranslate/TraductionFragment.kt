@@ -63,7 +63,7 @@ class TraductionFragment : Fragment() {
     private lateinit var tvResult: TextView
     private lateinit var tvDebugLog: TextView
     private lateinit var tvDebugRms: TextView
-    private lateinit var layoutDebug: android.view.ViewGroup
+    private lateinit var scrollDebug: android.widget.ScrollView
     private val debugLog = StringBuilder()
 
     private var recognizer: SpeechRecognizer? = null
@@ -103,14 +103,21 @@ class TraductionFragment : Fragment() {
         tvResult   = v.findViewById(R.id.tvTradResult)
         tvDebugLog = v.findViewById(R.id.tvDebugLog)
         tvDebugRms = v.findViewById(R.id.tvDebugRms)
-        layoutDebug = v.findViewById(R.id.layoutDebug)
+        scrollDebug = v.findViewById(R.id.scrollDebug)
 
-        v.findViewById<Button>(R.id.btnDebugToggle).setOnClickListener {
-            layoutDebug.visibility = if (layoutDebug.visibility == android.view.View.GONE)
-                android.view.View.VISIBLE else android.view.View.GONE
-        }
         v.findViewById<Button>(R.id.btnDebugClear).setOnClickListener {
             debugLog.clear(); tvDebugLog.text = ""
+        }
+        v.findViewById<Button>(R.id.btnRaccrocher).setOnClickListener {
+            try {
+                val tm = requireContext().getSystemService(android.telecom.TelecomManager::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= 28 &&
+                    requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    tm?.endCall()
+                } else {
+                    requireActivity().sendBroadcast(android.content.Intent(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
+                }
+            } catch (e: Exception) { dbg("Raccrocher err: ${e.message}") }
         }
 
         val labels = LANGS.map { it.second }
@@ -139,6 +146,7 @@ class TraductionFragment : Fragment() {
         requireActivity().runOnUiThread {
             debugLog.append(line)
             tvDebugLog.text = debugLog
+            scrollDebug.post { scrollDebug.fullScroll(android.view.View.FOCUS_DOWN) }
         }
     }
 
