@@ -1,15 +1,16 @@
 package com.calltranslate
 
+import android.Manifest
 import android.content.Intent
-import android.database.Cursor
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.fragment.app.Fragment
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 
 class AppelFragment : Fragment() {
 
@@ -21,17 +22,22 @@ class AppelFragment : Fragment() {
         )
     }
 
-    private data class Contact(val name: String, val tel: String)
-    private val contacts = mutableListOf<Contact>()
     private var selectedTel = ""
+    private var pendingTel  = ""
 
     private lateinit var spinMoi: Spinner
     private lateinit var spinOther: Spinner
     private lateinit var btnTrad: Button
     private lateinit var tvStatus: TextView
     private lateinit var tvNum: TextView
-    private lateinit var listView: ListView
     private lateinit var etNumero: EditText
+
+    private val requestCallPerm = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted && pendingTel.isNotEmpty()) { dialNow(pendingTel); pendingTel = "" }
+        else if (!granted) Toast.makeText(requireContext(), "Permission appel refusée", Toast.LENGTH_SHORT).show()
+    }
 
     private val pickContact = registerForActivityResult(
         ActivityResultContracts.PickContact()
@@ -51,7 +57,6 @@ class AppelFragment : Fragment() {
         btnTrad   = v.findViewById(R.id.btnCallTrad)
         tvStatus  = v.findViewById(R.id.tvCallStatus)
         tvNum     = v.findViewById(R.id.tvContactNum)
-        listView  = v.findViewById(R.id.listContacts)
         etNumero  = v.findViewById(R.id.etNumero)
 
         spinMoi.adapter = ArrayAdapter(requireContext(),
@@ -64,10 +69,7 @@ class AppelFragment : Fragment() {
         spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther","auto") }.coerceAtLeast(0))
 
         btnTrad.setOnClickListener { toggleTrad() }
-
-        v.findViewById<Button>(R.id.btnContacts).setOnClickListener {
-            pickContact.launch(null)
-        }
+        v.findViewById<Button>(R.id.btnContacts).setOnClickListener { pickContact.launch(null) }
         v.findViewById<Button>(R.id.btnVider).setOnClickListener { vider() }
         v.findViewById<Button>(R.id.btnSignaler).setOnClickListener {
             val num = etNumero.text.toString().trim()
@@ -111,14 +113,20 @@ class AppelFragment : Fragment() {
     }
 
     private fun loadContact(uri: Uri) {
-        val ctx = requireContext()
-        val cursor: Cursor? = ctx.contentResolver.query(uri, null, null, null, null)
+        val contactId = uri.lastPathSegment ?: return
+        val cursor = requireContext().contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+            arrayOf(
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER
+            ),
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+            arrayOf(contactId), null
+        )
         cursor?.use {
             if (it.moveToFirst()) {
-                val nameIdx = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
-                val telIdx  = it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
-                val name = if (nameIdx >= 0) it.getString(nameIdx) else "Contact"
-                val tel  = if (telIdx  >= 0) it.getString(telIdx)  else ""
+                val name = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
+                val tel  = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
                 if (tel.isNotEmpty()) {
                     selectedTel = tel.replace("\\s".toRegex(), "")
                     tvNum.text = "📞 $name — $tel"
@@ -129,18 +137,22 @@ class AppelFragment : Fragment() {
     }
 
     private fun signaler(tel: String) {
-        val a = android.net.Uri.parse("tel:$tel")
-        startActivity(Intent(Intent.ACTION_CALL, a).also {
-            if (it.resolveActivity(requireContext().packageManager) == null)
-                startActivity(Intent(Intent.ACTION_DIAL, a))
-        })
+        val ctx = requireContext()
+        if (ContextCompat.checkSelfPermission(ctx, Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED) {
+            dialNow(tel)
+        } else {
+            pendingTel = tel
+            requestCallPerm.launch(Manifest.permission.CALL_PHONE)
+        }
+    }
+
+    private fun dialNow(tel: String) {
+        startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$tel")))
     }
 
     private fun vider() {
-        contacts.clear()
         selectedTel = ""
         tvNum.text = ""
-        listView.visibility = View.GONE
         etNumero.text?.clear()
     }
 }
