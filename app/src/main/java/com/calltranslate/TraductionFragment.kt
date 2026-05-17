@@ -70,6 +70,7 @@ class TraductionFragment : Fragment() {
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
     private val pcmChunks = mutableListOf<ByteArray>()
+    private var recordingStartMs = 0L
 
     private val saveWavLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("audio/wav")
@@ -182,18 +183,19 @@ class TraductionFragment : Fragment() {
         stopAudioRecording()
         tvStatus.text = "Arrêté"
         if (log.isEmpty() && pcmChunks.isEmpty()) return
-        showSaveDialog(timestamp())
+        showSaveDialog(timestamp(), fmtDuration())
     }
 
-    private fun showSaveDialog(ts: String) {
+    private fun showSaveDialog(ts: String, dur: String = "") {
         val hasText  = log.isNotEmpty()
         val hasAudio = pcmChunks.isNotEmpty()
         if (!hasText && !hasAudio) { tvStatus.text = "Rien à sauvegarder"; return }
+        val wavName = if (dur.isNotEmpty()) "Rec_${ts}_${dur}.wav" else "Rec_$ts.wav"
         AlertDialog.Builder(requireContext())
             .setTitle("💾 Sauvegarder")
             .setItems(buildList {
                 if (hasText)  add("📄 Texte .txt")
-                if (hasAudio) add("🎙 Audio .wav")
+                if (hasAudio) add("🎙 Audio .wav ($dur)")
             }.toTypedArray()) { _, which ->
                 val options = buildList {
                     if (hasText)  add("txt")
@@ -201,7 +203,7 @@ class TraductionFragment : Fragment() {
                 }
                 when (options[which]) {
                     "txt" -> saveTxtLauncher.launch("Conv_$ts.txt")
-                    "wav" -> saveWavLauncher.launch("Rec_$ts.wav")
+                    "wav" -> saveWavLauncher.launch(wavName)
                 }
             }
             .setNegativeButton("Annuler", null)
@@ -210,15 +212,16 @@ class TraductionFragment : Fragment() {
 
     private fun toggleRec() {
         if (isRecording) {
+            val dur = fmtDuration()
             stopAudioRecording()
             btnRec.text = "⏺ Rec"
-            tvStatus.text = "Enregistrement arrêté"
+            tvStatus.text = "Enregistrement arrêté ($dur)"
             if (pcmChunks.isNotEmpty()) {
                 val ts = timestamp()
                 AlertDialog.Builder(requireContext())
                     .setTitle("💾 Sauvegarder audio")
                     .setMessage("Sauvegarder l'enregistrement en .wav ?")
-                    .setPositiveButton("🎙 .wav") { _, _ -> saveWavLauncher.launch("Rec_$ts.wav") }
+                    .setPositiveButton("🎙 .wav") { _, _ -> saveWavLauncher.launch("Rec_${ts}_${dur}.wav") }
                     .setNegativeButton("Annuler", null)
                     .show()
             }
@@ -239,6 +242,7 @@ class TraductionFragment : Fragment() {
             AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize
         )
         pcmChunks.clear()
+        recordingStartMs = System.currentTimeMillis()
         audioRecord?.startRecording()
         isRecording = true
         Thread {
@@ -248,6 +252,11 @@ class TraductionFragment : Fragment() {
                 if (n > 0) synchronized(pcmChunks) { pcmChunks.add(buf.copyOf(n)) }
             }
         }.start()
+    }
+
+    private fun fmtDuration(): String {
+        val s = (System.currentTimeMillis() - recordingStartMs) / 1000
+        return if (s >= 60) "${s / 60}m${s % 60}s" else "${s}s"
     }
 
     private fun stopAudioRecording() {
