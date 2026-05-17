@@ -24,6 +24,7 @@ class TranslationService : Service() {
         var onTranslated: ((String) -> Unit)? = null
         var onPartial:    ((String) -> Unit)? = null
         var onStatus:     ((String) -> Unit)? = null
+        var onRms:        ((Float) -> Unit)?  = null
         private const val NOTIF_ID  = 10
         private const val CHANNEL   = "call_trad"
         private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
@@ -67,7 +68,7 @@ class TranslationService : Service() {
         }
         override fun onReadyForSpeech(p: Bundle?) {}
         override fun onBeginningOfSpeech() {}
-        override fun onRmsChanged(v: Float) {}
+        override fun onRmsChanged(v: Float) { onRms?.invoke(v) }
         override fun onBufferReceived(b: ByteArray?) {}
         override fun onEndOfSpeech() {}
         override fun onPartialResults(b: Bundle?) {

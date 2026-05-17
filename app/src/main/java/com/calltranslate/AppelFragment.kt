@@ -42,6 +42,7 @@ class AppelFragment : Fragment() {
     private lateinit var tvCallOriginal: TextView
     private lateinit var tvCallResult: TextView
     private lateinit var tvAppelDebugLog: TextView
+    private lateinit var tvAppelRms: TextView
     private lateinit var scrollAppelDebug: android.widget.ScrollView
     private val appelDebugLog = StringBuilder()
 
@@ -104,9 +105,14 @@ class AppelFragment : Fragment() {
         spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "auto") }.coerceAtLeast(0))
 
         tvAppelDebugLog = v.findViewById(R.id.tvAppelDebugLog)
+        tvAppelRms = v.findViewById(R.id.tvAppelRms)
         scrollAppelDebug = v.findViewById(R.id.scrollAppelDebug)
         v.findViewById<Button>(R.id.btnAppelDebugClear).setOnClickListener {
             appelDebugLog.clear(); tvAppelDebugLog.text = ""
+        }
+
+        TranslationService.onRms = { rms ->
+            if (isAdded) activity?.runOnUiThread { tvAppelRms.text = "%.1f".format(rms) }
         }
 
         dbg("🐛 Appel V2 prêt — ouvre avant d'appeler")

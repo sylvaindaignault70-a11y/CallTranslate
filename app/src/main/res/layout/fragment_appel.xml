@@ -106,6 +106,12 @@
             android:gravity="center_vertical">
             <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
                 android:text="🐛 DEBUG" android:textColor="#f59e0b" android:textSize="12sp" android:textStyle="bold"/>
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="RMS:" android:textColor="#64748b" android:textSize="11sp"/>
+            <TextView android:id="@+id/tvAppelRms"
+                android:layout_width="48dp" android:layout_height="wrap_content"
+                android:text="0.0" android:textColor="#f59e0b" android:textSize="11sp"
+                android:gravity="end" android:layout_marginStart="4dp" android:layout_marginEnd="8dp"/>
             <Button android:id="@+id/btnAppelDebugClear"
                 android:layout_width="wrap_content" android:layout_height="30dp"
                 android:text="Effacer" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
