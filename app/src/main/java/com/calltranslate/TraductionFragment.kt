@@ -11,6 +11,7 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.*
 import android.speech.*
+import android.util.Log
 import android.speech.tts.TextToSpeech
 import android.view.*
 import android.widget.*
@@ -127,6 +128,7 @@ class TraductionFragment : Fragment() {
         recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(b: Bundle?) {
                 val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
+                Log.d("CT_SPEECH", "onResults isMe=$isMe locale=$srLocale text=$text")
                 requireActivity().runOnUiThread { tvOriginal.text = text }
                 val from = if (isMe) langMoi() else langOther()
                 val to   = if (isMe) langOther() else langMoi()
@@ -146,6 +148,19 @@ class TraductionFragment : Fragment() {
                 if (listening) startListen(isMe)
             }
             override fun onError(e: Int) {
+                val msg = when(e) {
+                    SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO(3) - mic occupé par appel?"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY(8)"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH(7)"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT(6)"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS(9)"
+                    SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK(2)"
+                    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "ERROR_LANGUAGE_NOT_SUPPORTED(13)"
+                    SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "ERROR_LANGUAGE_UNAVAILABLE(14)"
+                    else -> "ERROR_$e"
+                }
+                Log.e("CT_SPEECH", "onError isMe=$isMe: $msg locale=$srLocale")
+                requireActivity().runOnUiThread { tvStatus.text = "⚠ $msg" }
                 if (listening) Handler(Looper.getMainLooper()).postDelayed({ if (listening) startListen(isMe) }, 800)
             }
             override fun onReadyForSpeech(p: Bundle?) {}
