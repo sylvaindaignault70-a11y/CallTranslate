@@ -130,7 +130,7 @@ class TraductionFragment : Fragment() {
                 if (listening) startListen(isMe)
             }
             override fun onError(e: Int) {
-                if (listening) Handler(Looper.getMainLooper()).postDelayed({ startListen(isMe) }, 800)
+                if (listening) Handler(Looper.getMainLooper()).postDelayed({ if (listening) startListen(isMe) }, 800)
             }
             override fun onReadyForSpeech(p: Bundle?) {}
             override fun onBeginningOfSpeech() {}

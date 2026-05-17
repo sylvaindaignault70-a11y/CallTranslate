@@ -8,6 +8,8 @@ import android.os.Bundle
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
@@ -24,6 +26,11 @@ class MainActivity : AppCompatActivity() {
         requestAllPermissions()
 
         val nav = findViewById<BottomNavigationView>(R.id.bottomNav)
+        ViewCompat.setOnApplyWindowInsetsListener(nav) { v, insets ->
+            val bottom = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+            v.setPadding(0, 0, 0, bottom)
+            insets
+        }
         if (savedInstanceState == null) show(AppelFragment())
         nav.setOnItemSelectedListener { item ->
             when (item.itemId) {

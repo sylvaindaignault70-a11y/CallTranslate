@@ -43,7 +43,12 @@ class MusiqueFragment : Fragment() {
 
     private val pickFiles = registerForActivityResult(
         ActivityResultContracts.OpenMultipleDocuments()
-    ) { uris -> loadUris(uris) }
+    ) { uris ->
+        uris.forEach { uri ->
+            try { requireContext().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) {}
+        }
+        loadUris(uris)
+    }
 
     private val pickFolder = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
@@ -103,6 +108,8 @@ class MusiqueFragment : Fragment() {
             adapter.setTracks(MusicPlayer.playlist)
             adapter.setCurrentIndex(MusicPlayer.currentIndex)
             showPlayerBar()
+        } else {
+            restorePlaylist()
         }
 
         MusicPlayer.onTrackChange = { idx ->
@@ -162,7 +169,21 @@ class MusiqueFragment : Fragment() {
         MusicPlayer.playlist.addAll(tracks)
         adapter.setTracks(tracks)
         tvStatus.text = "${tracks.size} pistes"
+        savePlaylist(uris)
         if (tracks.isNotEmpty()) play(0)
+    }
+
+    private fun savePlaylist(uris: List<Uri>) {
+        requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+            .edit().putString("uris", uris.joinToString("|") { it.toString() }).apply()
+    }
+
+    private fun restorePlaylist() {
+        val saved = requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+            .getString("uris", null) ?: return
+        val uris = saved.split("|").filter { it.isNotEmpty() }.map { Uri.parse(it) }
+        if (uris.isEmpty()) return
+        loadUris(uris)
     }
 
     private fun fmtTime(ms: Int): String {
