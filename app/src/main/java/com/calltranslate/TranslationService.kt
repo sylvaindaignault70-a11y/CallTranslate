@@ -45,7 +45,7 @@ class TranslationService : Service() {
         override fun onCallStateChanged(state: Int, number: String?) {
             when (state) {
                 TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true;  setSpeaker(true);  mainH.postDelayed(::doListen, 1500) }
-                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; setSpeaker(false); stopListen() }
+                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; setSpeaker(false); stopListen(); stopSelf() }
             }
         }
     }
