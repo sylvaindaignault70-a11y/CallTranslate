@@ -101,5 +101,36 @@
             android:layout_marginTop="8dp"
                 android:maxLines="1"/>
 
+        <Button android:id="@+id/btnDebugToggle"
+            android:layout_width="match_parent" android:layout_height="36dp"
+            android:text="🐛 DEBUG" android:backgroundTint="#1a1a2e" android:textColor="#f59e0b"
+            android:textSize="11sp" android:layout_marginTop="8dp" android:maxLines="1"/>
+
+        <LinearLayout android:id="@+id/layoutDebug"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:visibility="gone"
+            android:background="#0a0a14" android:padding="8dp" android:layout_marginTop="4dp">
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:layout_marginBottom="4dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="🎙 RMS: " android:textColor="#64748b" android:textSize="11sp"/>
+                <TextView android:id="@+id/tvDebugRms"
+                    android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1"
+                    android:text="0.0" android:textColor="#f59e0b" android:textSize="11sp"/>
+                <Button android:id="@+id/btnDebugClear"
+                    android:layout_width="wrap_content" android:layout_height="28dp"
+                    android:text="Effacer" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
+                    android:textSize="10sp" android:paddingStart="8dp" android:paddingEnd="8dp"/>
+            </LinearLayout>
+
+            <ScrollView android:layout_width="match_parent" android:layout_height="200dp">
+                <TextView android:id="@+id/tvDebugLog"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="" android:textColor="#94a3b8" android:textSize="10sp"
+                    android:fontFamily="monospace" android:lineSpacingExtra="2dp"/>
+            </ScrollView>
+        </LinearLayout>
+
     </LinearLayout>
 </ScrollView>

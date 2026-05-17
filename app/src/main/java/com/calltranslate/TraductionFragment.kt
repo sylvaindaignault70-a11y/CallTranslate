@@ -61,6 +61,10 @@ class TraductionFragment : Fragment() {
     private lateinit var tvStatus: TextView
     private lateinit var tvOriginal: TextView
     private lateinit var tvResult: TextView
+    private lateinit var tvDebugLog: TextView
+    private lateinit var tvDebugRms: TextView
+    private lateinit var layoutDebug: android.view.ViewGroup
+    private val debugLog = StringBuilder()
 
     private var recognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
@@ -97,6 +101,17 @@ class TraductionFragment : Fragment() {
         tvStatus   = v.findViewById(R.id.tvTradStatus)
         tvOriginal = v.findViewById(R.id.tvOriginal)
         tvResult   = v.findViewById(R.id.tvTradResult)
+        tvDebugLog = v.findViewById(R.id.tvDebugLog)
+        tvDebugRms = v.findViewById(R.id.tvDebugRms)
+        layoutDebug = v.findViewById(R.id.layoutDebug)
+
+        v.findViewById<Button>(R.id.btnDebugToggle).setOnClickListener {
+            layoutDebug.visibility = if (layoutDebug.visibility == android.view.View.GONE)
+                android.view.View.VISIBLE else android.view.View.GONE
+        }
+        v.findViewById<Button>(R.id.btnDebugClear).setOnClickListener {
+            debugLog.clear(); tvDebugLog.text = ""
+        }
 
         val labels = LANGS.map { it.second }
         spinMoi.adapter   = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, labels)
@@ -118,6 +133,15 @@ class TraductionFragment : Fragment() {
     private fun langMoi()   = LANGS[spinMoi.selectedItemPosition].first
     private fun langOther() = LANGS[spinOther.selectedItemPosition].first
 
+    private fun dbg(msg: String) {
+        val line = "[${timestamp()}] $msg\n"
+        Log.d("CT_SPEECH", msg)
+        requireActivity().runOnUiThread {
+            debugLog.append(line)
+            tvDebugLog.text = debugLog
+        }
+    }
+
     private fun startListen(isMe: Boolean) {
         if (!isRecording) startAudioRecording()
         val srcLang = if (isMe) langMoi() else langOther()
@@ -128,7 +152,7 @@ class TraductionFragment : Fragment() {
         recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(b: Bundle?) {
                 val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
-                Log.d("CT_SPEECH", "onResults isMe=$isMe locale=$srLocale text=$text")
+                dbg("✅ RESULT ${if (isMe) "MOI" else "AUTRE"}: $text")
                 requireActivity().runOnUiThread { tvOriginal.text = text }
                 val from = if (isMe) langMoi() else langOther()
                 val to   = if (isMe) langOther() else langMoi()
@@ -149,26 +173,31 @@ class TraductionFragment : Fragment() {
             }
             override fun onError(e: Int) {
                 val msg = when(e) {
-                    SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO(3) - mic occupé par appel?"
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY(8)"
+                    SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO(3)-mic bloqué?"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_BUSY(8)"
                     SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH(7)"
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT(6)"
-                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS(9)"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_TIMEOUT(6)"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_PERMISSION(9)"
                     SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK(2)"
-                    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "ERROR_LANGUAGE_NOT_SUPPORTED(13)"
-                    SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "ERROR_LANGUAGE_UNAVAILABLE(14)"
+                    SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "ERROR_LANG_UNSUPPORTED(13)"
+                    SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "ERROR_LANG_UNAVAIL(14)"
                     else -> "ERROR_$e"
                 }
-                Log.e("CT_SPEECH", "onError isMe=$isMe: $msg locale=$srLocale")
+                dbg("❌ $msg locale=$srLocale isMe=$isMe")
                 requireActivity().runOnUiThread { tvStatus.text = "⚠ $msg" }
                 if (listening) Handler(Looper.getMainLooper()).postDelayed({ if (listening) startListen(isMe) }, 800)
             }
-            override fun onReadyForSpeech(p: Bundle?) {}
-            override fun onBeginningOfSpeech() {}
-            override fun onRmsChanged(v: Float) {}
+            override fun onReadyForSpeech(p: Bundle?) { dbg("🟢 READY locale=$srLocale isMe=$isMe") }
+            override fun onBeginningOfSpeech() { dbg("🔴 SPEECH DETECTED") }
+            override fun onRmsChanged(v: Float) {
+                requireActivity().runOnUiThread { tvDebugRms.text = "%.1f".format(v) }
+            }
             override fun onBufferReceived(b: ByteArray?) {}
-            override fun onEndOfSpeech() {}
-            override fun onPartialResults(b: Bundle?) {}
+            override fun onEndOfSpeech() { dbg("⏹ END OF SPEECH") }
+            override fun onPartialResults(b: Bundle?) {
+                val partial = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
+                dbg("〜 PARTIAL: $partial")
+            }
             override fun onEvent(t: Int, b: Bundle?) {}
         })
 
