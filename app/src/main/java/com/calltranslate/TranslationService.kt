@@ -112,7 +112,10 @@ class TranslationService : Service() {
             val sl = if (langOther == "auto") "auto" else langOther
             val q  = URLEncoder.encode(text, "UTF-8")
             val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$langMoi&dt=t&q=$q"
-            val raw = URL(url).readText()
+            val conn = URL(url).openConnection() as java.net.HttpURLConnection
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            conn.connectTimeout = 5000; conn.readTimeout = 5000
+            val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
             val translated = JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
             if (translated.isNotBlank()) mainH.post { speak(translated) }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }

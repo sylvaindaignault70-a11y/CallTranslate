@@ -174,8 +174,13 @@ class TraductionFragment : Fragment() {
     private suspend fun translate(text: String, from: String, to: String): String {
         return try {
             val q = URLEncoder.encode(text, "UTF-8")
-            val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=$q"
-            val raw = URL(url).readText()
+            val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$from&tl=$to&dt=t&q=$q"
+            val conn = URL(urlStr).openConnection() as java.net.HttpURLConnection
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0")
+            conn.setRequestProperty("Accept-Charset", "UTF-8")
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
             JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
         } catch (e: Exception) { "" }
     }
