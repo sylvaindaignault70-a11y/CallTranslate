@@ -113,17 +113,21 @@ class AppelFragment : Fragment() {
     }
 
     private fun loadContact(uri: Uri) {
-        val contactId = uri.lastPathSegment ?: return
-        val cursor = requireContext().contentResolver.query(
+        val ctx = requireContext()
+        val contactId = ctx.contentResolver.query(
+            uri, arrayOf(ContactsContract.Contacts._ID), null, null, null
+        )?.use { c ->
+            if (c.moveToFirst()) c.getLong(c.getColumnIndexOrThrow(ContactsContract.Contacts._ID)).toString()
+            else null
+        } ?: return
+
+        ctx.contentResolver.query(
             ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-            arrayOf(
-                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
-                ContactsContract.CommonDataKinds.Phone.NUMBER
-            ),
+            arrayOf(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    ContactsContract.CommonDataKinds.Phone.NUMBER),
             "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
             arrayOf(contactId), null
-        )
-        cursor?.use {
+        )?.use {
             if (it.moveToFirst()) {
                 val name = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME))
                 val tel  = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
