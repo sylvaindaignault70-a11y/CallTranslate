@@ -71,11 +71,13 @@ class TranslationService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, id: Int): Int {
         langMoi   = intent?.getStringExtra("langMoi")   ?: "fr"
         langOther = intent?.getStringExtra("langOther") ?: "auto"
-        startForeground(NOTIF_ID, buildNotif())
+        try { startForeground(NOTIF_ID, buildNotif()) } catch (e: Exception) { Log.e("TS","notif: ${e.message}") }
         tts = TextToSpeech(this) {}
         mainH.post {
-            recognizer = SpeechRecognizer.createSpeechRecognizer(this)
-            recognizer?.setRecognitionListener(recListener)
+            try {
+                recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+                recognizer?.setRecognitionListener(recListener)
+            } catch (e: Exception) { Log.e("TS","sr: ${e.message}") }
         }
         @Suppress("DEPRECATION")
         (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)

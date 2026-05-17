@@ -49,19 +49,18 @@ class MusiqueFragment : Fragment() {
         ActivityResultContracts.OpenDocumentTree()
     ) { uri ->
         uri ?: return@registerForActivityResult
-        requireContext().contentResolver.takePersistableUriPermission(
-            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        val treeDocId = android.provider.DocumentsContract.getTreeDocumentId(uri)
+        try { requireContext().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) {}
+        val treeDocId = try { android.provider.DocumentsContract.getTreeDocumentId(uri) } catch (e: Exception) { pickFiles.launch(arrayOf("audio/*")); return@registerForActivityResult }
         val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(uri, treeDocId)
         val uris = mutableListOf<Uri>()
-        requireContext().contentResolver.query(
+        try { requireContext().contentResolver.query(
             childrenUri,
             arrayOf(
                 android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
                 android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
             ),
             null, null, null
-        )?.use { c ->
+        ) } catch (e: Exception) { null }?.use { c ->
             val idCol   = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             val mimeCol = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
             while (c.moveToNext()) {

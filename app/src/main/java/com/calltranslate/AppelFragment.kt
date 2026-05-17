@@ -133,8 +133,7 @@ class AppelFragment : Fragment() {
                 val tel  = it.getString(it.getColumnIndexOrThrow(ContactsContract.CommonDataKinds.Phone.NUMBER))
                 if (tel.isNotEmpty()) {
                     selectedTel = tel.replace("\\s".toRegex(), "")
-                    tvNum.text = "📞 $name — $tel"
-                    signaler(selectedTel)
+                    tvNum.text = "📞 $name — $tel  (appuie Signaler)"
                 }
             }
         }
