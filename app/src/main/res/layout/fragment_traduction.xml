@@ -87,11 +87,13 @@
         <Button android:id="@+id/btnRec"
             android:layout_width="match_parent" android:layout_height="44dp"
             android:text="⏺ Rec" android:backgroundTint="#ef4444" android:textColor="#ffffff"
+            android:gravity="start|center_vertical" android:paddingStart="16dp"
             android:layout_marginTop="12dp"/>
 
         <Button android:id="@+id/btnSaveText"
             android:layout_width="match_parent" android:layout_height="48dp"
             android:text="💾 Sauvegarder" android:backgroundTint="#1a1a2e" android:textColor="#06b6d4"
+            android:gravity="start|center_vertical" android:paddingStart="16dp"
             android:layout_marginTop="8dp"/>
 
     </LinearLayout>

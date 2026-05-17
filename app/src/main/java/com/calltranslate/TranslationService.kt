@@ -22,6 +22,7 @@ class TranslationService : Service() {
         @Volatile var isRunning = false
         var onOriginal:   ((String) -> Unit)? = null
         var onTranslated: ((String) -> Unit)? = null
+        var onPartial:    ((String) -> Unit)? = null
         private const val NOTIF_ID  = 10
         private const val CHANNEL   = "call_trad"
         private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
@@ -67,7 +68,10 @@ class TranslationService : Service() {
         override fun onRmsChanged(v: Float) {}
         override fun onBufferReceived(b: ByteArray?) {}
         override fun onEndOfSpeech() {}
-        override fun onPartialResults(b: Bundle?) {}
+        override fun onPartialResults(b: Bundle?) {
+            val partial = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+            if (!partial.isNullOrBlank()) mainH.post { onPartial?.invoke(partial) }
+        }
         override fun onEvent(t: Int, b: Bundle?) {}
     }
 

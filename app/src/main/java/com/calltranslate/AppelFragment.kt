@@ -118,11 +118,14 @@ class AppelFragment : Fragment() {
         spinMoi.setSelection(LANGS_MOI.indexOfFirst { it.first == prefs.getString("callLangMoi", "fr") }.coerceAtLeast(0))
         spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "auto") }.coerceAtLeast(0))
 
+        TranslationService.onPartial = { partial ->
+            if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = "... $partial" }
+        }
         TranslationService.onOriginal = { text ->
-            requireActivity().runOnUiThread { tvCallOriginal.text = text }
+            if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = text }
         }
         TranslationService.onTranslated = { trad ->
-            requireActivity().runOnUiThread {
+            if (isAdded) activity?.runOnUiThread {
                 tvCallResult.text = trad
                 log.append("[${timestamp()}] $trad\n")
             }
@@ -334,6 +337,7 @@ class AppelFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        TranslationService.onPartial    = null
         TranslationService.onOriginal   = null
         TranslationService.onTranslated = null
         stopAudioRecording()
