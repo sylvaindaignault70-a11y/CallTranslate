@@ -1,17 +1,24 @@
 package com.calltranslate
 
+import android.Manifest
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.net.Uri
 import android.os.*
 import android.speech.*
 import android.speech.tts.TextToSpeech
 import android.view.*
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import kotlinx.coroutines.*
 import org.json.JSONArray
-import java.io.File
 import java.net.URL
 import java.net.URLEncoder
 import java.text.SimpleDateFormat
@@ -35,11 +42,12 @@ class TraductionFragment : Fragment() {
             "ar" to "ar-SA", "ru" to "ru-RU"
         )
         val TTS_LOCALE = mapOf(
-            "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"),
-            "de" to Locale.GERMAN, "pt" to Locale("pt","BR"), "it" to Locale.ITALIAN,
+            "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es", "ES"),
+            "de" to Locale.GERMAN, "pt" to Locale("pt", "BR"), "it" to Locale.ITALIAN,
             "zh" to Locale.CHINESE, "ja" to Locale.JAPANESE, "ko" to Locale.KOREAN,
             "ar" to Locale("ar"), "ru" to Locale("ru")
         )
+        private const val SAMPLE_RATE = 44100
     }
 
     private lateinit var spinMoi: Spinner
@@ -56,13 +64,20 @@ class TraductionFragment : Fragment() {
     private var recognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var listening = false
-    private var modeIsMe = true
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-    private val log = mutableListOf<String>()
+    private val log = StringBuilder()
 
-    private var recorder: MediaRecorder? = null
-    private var recFile: File? = null
+    private var audioRecord: AudioRecord? = null
     private var isRecording = false
+    private val pcmChunks = mutableListOf<ByteArray>()
+
+    private val saveWavLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("audio/wav")
+    ) { uri -> uri?.let { saveWav(it) } }
+
+    private val saveTxtLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri -> uri?.let { saveTxt(it) } }
 
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View =
         inflater.inflate(R.layout.fragment_traduction, c, false)
@@ -70,43 +85,43 @@ class TraductionFragment : Fragment() {
     override fun onViewCreated(v: View, s: Bundle?) {
         super.onViewCreated(v, s)
 
-        spinMoi   = v.findViewById(R.id.spinTradMoi)
-        spinOther = v.findViewById(R.id.spinTradOther)
-        btnMoi    = v.findViewById(R.id.btnMoi)
-        btnAutre  = v.findViewById(R.id.btnAutre)
-        btnStop   = v.findViewById(R.id.btnStop)
-        btnRec    = v.findViewById(R.id.btnRec)
-        btnSave   = v.findViewById(R.id.btnSaveText)
-        tvStatus  = v.findViewById(R.id.tvTradStatus)
+        spinMoi    = v.findViewById(R.id.spinTradMoi)
+        spinOther  = v.findViewById(R.id.spinTradOther)
+        btnMoi     = v.findViewById(R.id.btnMoi)
+        btnAutre   = v.findViewById(R.id.btnAutre)
+        btnStop    = v.findViewById(R.id.btnStop)
+        btnRec     = v.findViewById(R.id.btnRec)
+        btnSave    = v.findViewById(R.id.btnSaveText)
+        tvStatus   = v.findViewById(R.id.tvTradStatus)
         tvOriginal = v.findViewById(R.id.tvOriginal)
-        tvResult  = v.findViewById(R.id.tvTradResult)
+        tvResult   = v.findViewById(R.id.tvTradResult)
 
         val labels = LANGS.map { it.second }
         spinMoi.adapter   = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, labels)
         spinOther.adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, labels)
 
         val prefs = requireContext().getSharedPreferences("prefs", Context.MODE_PRIVATE)
-        spinMoi.setSelection(LANGS.indexOfFirst { it.first == prefs.getString("tradLangMoi","fr") }.coerceAtLeast(0))
-        spinOther.setSelection(LANGS.indexOfFirst { it.first == prefs.getString("tradLangOther","en") }.coerceAtLeast(0))
+        spinMoi.setSelection(LANGS.indexOfFirst { it.first == prefs.getString("tradLangMoi", "fr") }.coerceAtLeast(0))
+        spinOther.setSelection(LANGS.indexOfFirst { it.first == prefs.getString("tradLangOther", "en") }.coerceAtLeast(0))
 
         tts = TextToSpeech(requireContext()) {}
 
-        btnMoi.setOnClickListener    { startListen(true) }
-        btnAutre.setOnClickListener  { startListen(false) }
-        btnStop.setOnClickListener   { stopAll() }
-        btnRec.setOnClickListener    { toggleRec() }
-        btnSave.setOnClickListener   { saveText() }
+        btnMoi.setOnClickListener   { startListen(true) }
+        btnAutre.setOnClickListener { startListen(false) }
+        btnStop.setOnClickListener  { stopAndSave() }
+        btnRec.setOnClickListener   { toggleRec() }
+        btnSave.setOnClickListener  { showSaveDialog(timestamp()) }
     }
 
     private fun langMoi()   = LANGS[spinMoi.selectedItemPosition].first
     private fun langOther() = LANGS[spinOther.selectedItemPosition].first
 
     private fun startListen(isMe: Boolean) {
-        stopAll()
-        modeIsMe = isMe
+        if (!isRecording) startAudioRecording()
         val srcLang = if (isMe) langMoi() else langOther()
         val srLocale = SR_LOCALE[srcLang] ?: "fr-FR"
 
+        recognizer?.destroy()
         recognizer = SpeechRecognizer.createSpeechRecognizer(requireContext())
         recognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onResults(b: Bundle?) {
@@ -121,7 +136,7 @@ class TraductionFragment : Fragment() {
                             tvResult.text = trad
                             tvStatus.text = "✓"
                             speak(trad, to)
-                            log.add("[${timestamp()}] ${if(isMe) "MOI" else "AUTRE"}: $text → $trad")
+                            log.append("[${timestamp()}] ${if (isMe) "MOI" else "AUTRE"}: $text → $trad\n\n")
                         } else {
                             tvStatus.text = "⚠ Traduction échouée (réseau?)"
                         }
@@ -148,19 +163,146 @@ class TraductionFragment : Fragment() {
         }
         listening = true
         recognizer?.startListening(intent)
-        tvStatus.text = if (isMe) "🎤 MOI actif..." else "👂 L'AUTRE actif..."
+        tvStatus.text  = if (isMe) "🎤 MOI actif..." else "👂 L'AUTRE actif..."
         btnMoi.alpha   = if (isMe) 1f else 0.5f
         btnAutre.alpha = if (isMe) 0.5f else 1f
     }
 
-    private fun stopAll() {
+    private fun stopListening() {
         listening = false
         recognizer?.stopListening()
         recognizer?.destroy()
         recognizer = null
         btnMoi.alpha   = 1f
         btnAutre.alpha = 1f
-        tvStatus.text  = "Arrêté"
+    }
+
+    private fun stopAndSave() {
+        stopListening()
+        stopAudioRecording()
+        tvStatus.text = "Arrêté"
+        if (log.isEmpty() && pcmChunks.isEmpty()) return
+        showSaveDialog(timestamp())
+    }
+
+    private fun showSaveDialog(ts: String) {
+        val hasText  = log.isNotEmpty()
+        val hasAudio = pcmChunks.isNotEmpty()
+        if (!hasText && !hasAudio) { tvStatus.text = "Rien à sauvegarder"; return }
+        AlertDialog.Builder(requireContext())
+            .setTitle("💾 Sauvegarder")
+            .setItems(buildList {
+                if (hasText)  add("📄 Texte .txt")
+                if (hasAudio) add("🎙 Audio .wav")
+            }.toTypedArray()) { _, which ->
+                val options = buildList {
+                    if (hasText)  add("txt")
+                    if (hasAudio) add("wav")
+                }
+                when (options[which]) {
+                    "txt" -> saveTxtLauncher.launch("Conv_$ts.txt")
+                    "wav" -> saveWavLauncher.launch("Rec_$ts.wav")
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun toggleRec() {
+        if (isRecording) {
+            stopAudioRecording()
+            btnRec.text = "⏺ Rec"
+            tvStatus.text = "Enregistrement arrêté"
+            if (pcmChunks.isNotEmpty()) {
+                val ts = timestamp()
+                AlertDialog.Builder(requireContext())
+                    .setTitle("💾 Sauvegarder audio")
+                    .setMessage("Sauvegarder l'enregistrement en .wav ?")
+                    .setPositiveButton("🎙 .wav") { _, _ -> saveWavLauncher.launch("Rec_$ts.wav") }
+                    .setNegativeButton("Annuler", null)
+                    .show()
+            }
+        } else {
+            startAudioRecording()
+            btnRec.text = "⏹ Stop Rec"
+            tvStatus.text = "🔴 Enregistrement..."
+        }
+    }
+
+    private fun startAudioRecording() {
+        if (isRecording) return
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
+            != PackageManager.PERMISSION_GRANTED) return
+        val bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+        audioRecord = AudioRecord(
+            MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize
+        )
+        pcmChunks.clear()
+        audioRecord?.startRecording()
+        isRecording = true
+        Thread {
+            val buf = ByteArray(bufSize)
+            while (isRecording) {
+                val n = audioRecord?.read(buf, 0, bufSize) ?: 0
+                if (n > 0) synchronized(pcmChunks) { pcmChunks.add(buf.copyOf(n)) }
+            }
+        }.start()
+    }
+
+    private fun stopAudioRecording() {
+        isRecording = false
+        audioRecord?.stop()
+        audioRecord?.release()
+        audioRecord = null
+    }
+
+    private fun saveWav(uri: Uri) {
+        scope.launch {
+            try {
+                val pcm = synchronized(pcmChunks) { pcmChunks.flatMap { it.toList() }.toByteArray() }
+                val wav = pcmToWav(pcm)
+                requireContext().contentResolver.openOutputStream(uri)?.use { it.write(wav) }
+                requireActivity().runOnUiThread { tvStatus.text = "✓ Audio sauvegardé" }
+            } catch (e: Exception) {
+                requireActivity().runOnUiThread { tvStatus.text = "⚠ Erreur sauvegarde audio" }
+            }
+        }
+    }
+
+    private fun saveTxt(uri: Uri) {
+        try {
+            requireContext().contentResolver.openOutputStream(uri)?.use {
+                it.write(log.toString().toByteArray(Charsets.UTF_8))
+            }
+            tvStatus.text = "✓ Texte sauvegardé"
+        } catch (e: Exception) {
+            tvStatus.text = "⚠ Erreur sauvegarde texte"
+        }
+    }
+
+    private fun pcmToWav(pcm: ByteArray): ByteArray {
+        val channels = 1
+        val bitsPerSample = 16
+        val byteRate = SAMPLE_RATE * channels * bitsPerSample / 8
+        val out = java.io.ByteArrayOutputStream()
+        fun Int.le4() = byteArrayOf(toByte(), shr(8).toByte(), shr(16).toByte(), shr(24).toByte())
+        fun Short.le2() = byteArrayOf(toByte(), toInt().shr(8).toByte())
+        out.write("RIFF".toByteArray())
+        out.write((36 + pcm.size).le4())
+        out.write("WAVE".toByteArray())
+        out.write("fmt ".toByteArray())
+        out.write(16.le4())
+        out.write(1.toShort().le2())
+        out.write(channels.toShort().le2())
+        out.write(SAMPLE_RATE.le4())
+        out.write(byteRate.le4())
+        out.write((channels * bitsPerSample / 8).toShort().le2())
+        out.write(bitsPerSample.toShort().le2())
+        out.write("data".toByteArray())
+        out.write(pcm.size.le4())
+        out.write(pcm)
+        return out.toByteArray()
     }
 
     private fun speak(text: String, lang: String) {
@@ -185,44 +327,13 @@ class TraductionFragment : Fragment() {
         } catch (e: Exception) { "" }
     }
 
-    private fun toggleRec() {
-        if (isRecording) {
-            recorder?.stop(); recorder?.release(); recorder = null
-            isRecording = false
-            btnRec.text = "⏺ Rec"
-            tvStatus.text = "Enregistrement sauvegardé"
-        } else {
-            val ctx = requireContext()
-            val dir = File(ctx.getExternalFilesDir(null), "Message").also { it.mkdirs() }
-            recFile = File(dir, "Rec_${timestamp()}.m4a")
-            recorder = MediaRecorder().apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
-                setOutputFile(recFile!!.absolutePath)
-                prepare(); start()
-            }
-            isRecording = true
-            btnRec.text = "⏹ Stop Rec"
-        }
-    }
-
-    private fun saveText() {
-        if (log.isEmpty()) { tvStatus.text = "Rien à sauvegarder"; return }
-        val ctx = requireContext()
-        val dir = File(ctx.getExternalFilesDir(null), "Message").also { it.mkdirs() }
-        val f = File(dir, "Conv_${timestamp()}.txt")
-        f.writeText(log.joinToString("\n\n"))
-        tvStatus.text = "Sauvegardé: ${f.name}"
-    }
-
     private fun timestamp() = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
 
     override fun onDestroyView() {
         super.onDestroyView()
-        stopAll()
+        stopListening()
+        stopAudioRecording()
         tts?.shutdown()
         scope.cancel()
-        if (isRecording) { recorder?.stop(); recorder?.release() }
     }
 }
