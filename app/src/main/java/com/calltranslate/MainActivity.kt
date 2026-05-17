@@ -1,5 +1,6 @@
 package com.calltranslate
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -23,6 +24,14 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_eq      -> { show(EqFragment());         true }
                 else -> false
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        if (isFinishing) {
+            stopService(Intent(this, TranslationService::class.java))
+            stopService(Intent(this, MusicService::class.java))
         }
     }
 

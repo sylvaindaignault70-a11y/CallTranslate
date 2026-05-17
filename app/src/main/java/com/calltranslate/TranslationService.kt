@@ -40,8 +40,8 @@ class TranslationService : Service() {
     private val phoneListener = object : PhoneStateListener() {
         override fun onCallStateChanged(state: Int, number: String?) {
             when (state) {
-                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true;  mainH.postDelayed(::doListen, 1500) }
-                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; stopListen() }
+                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true;  setSpeaker(true);  mainH.postDelayed(::doListen, 1500) }
+                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; setSpeaker(false); stopListen() }
             }
         }
     }
@@ -94,6 +94,10 @@ class TranslationService : Service() {
             if (srLang.isNotEmpty()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
         }
         recognizer?.startListening(intent)
+    }
+
+    private fun setSpeaker(on: Boolean) {
+        (getSystemService(AUDIO_SERVICE) as AudioManager).isSpeakerphoneOn = on
     }
 
     private fun stopListen() {
