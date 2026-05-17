@@ -15,7 +15,7 @@ class TrackAdapter(
     private val onPlay: (Int) -> Unit
 ) : RecyclerView.Adapter<TrackAdapter.VH>() {
 
-    var currentIndex = -1
+    @JvmField var currentIndex = -1
 
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
         val num  : TextView = v.findViewById(R.id.tvTrackNum)
