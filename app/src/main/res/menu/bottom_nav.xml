@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/nav_appel"   android:title="Appel"   android:icon="@android:drawable/ic_menu_call"/>
-    <item android:id="@+id/nav_trad"    android:title="Trad"    android:icon="@android:drawable/ic_menu_compass"/>
+    <item android:id="@+id/nav_appel"   android:title="Appel V2"   android:icon="@android:drawable/ic_menu_call"/>
+    <item android:id="@+id/nav_trad"    android:title="Trad V2"    android:icon="@android:drawable/ic_menu_compass"/>
     <item android:id="@+id/nav_musique" android:title="Musique" android:icon="@android:drawable/ic_media_play"/>
     <item android:id="@+id/nav_eq"      android:title="EQ"      android:icon="@android:drawable/ic_menu_manage"/>
 </menu>
