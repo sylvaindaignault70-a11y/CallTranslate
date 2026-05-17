@@ -24,11 +24,11 @@
             android:orientation="horizontal" android:layout_marginBottom="8dp">
             <Button android:id="@+id/btnOpenFolder"
                 android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:text="📁 Dossier" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
+                android:text="📁" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
                 android:layout_marginEnd="6dp"/>
             <Button android:id="@+id/btnOpenFiles"
                 android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:text="🎵 Fichiers" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
+                android:text="🎵" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
                 android:layout_marginEnd="6dp"/>
             <Button android:id="@+id/btnShuffle"
                 android:layout_width="wrap_content" android:layout_height="44dp"

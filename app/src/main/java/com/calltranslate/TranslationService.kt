@@ -90,9 +90,15 @@ class TranslationService : Service() {
                 recognizer?.setRecognitionListener(recListener)
             } catch (e: Exception) { Log.e("TS","sr: ${e.message}") }
         }
+        val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         @Suppress("DEPRECATION")
-        (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)
-            .listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE)
+        tm.listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE)
+        // If call already active when service starts, phoneListener won't fire
+        if (tm.callState == TelephonyManager.CALL_STATE_OFFHOOK) {
+            callActive = true
+            setSpeaker(true)
+            mainH.postDelayed(::doListen, 1500)
+        }
         isRunning = true
         return START_STICKY
     }
