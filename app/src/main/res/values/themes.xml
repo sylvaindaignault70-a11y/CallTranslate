@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CallTranslate" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">#7c3aed</item>
+        <item name="colorPrimaryDark">#080810</item>
+        <item name="colorAccent">#06b6d4</item>
+        <item name="android:windowBackground">#080810</item>
+        <item name="android:textColorPrimary">#e2e8f0</item>
+        <item name="android:statusBarColor">#080810</item>
+    </style>
+</resources>

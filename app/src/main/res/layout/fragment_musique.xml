@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="#080810">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🎵 MUSIQUE"
+            android:textColor="#7c3aed"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="12dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="8dp">
+            <Button android:id="@+id/btnOpenFolder"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="📁 Dossier" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
+                android:layout_marginEnd="6dp"/>
+            <Button android:id="@+id/btnOpenFiles"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="🎵 Fichiers" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
+                android:layout_marginEnd="6dp"/>
+            <Button android:id="@+id/btnShuffle"
+                android:layout_width="wrap_content" android:layout_height="44dp"
+                android:text="🔀" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tvMusicStatus"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Ouvre un dossier MP3" android:textColor="#64748b"
+            android:textSize="12sp" android:gravity="center" android:layout_marginBottom="8dp"/>
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerPlaylist"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#080810"/>
+
+    <!-- Player bar -->
+    <LinearLayout android:id="@+id/playerBar"
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:background="#0f0f1a"
+        android:padding="12dp" android:visibility="gone">
+
+        <TextView android:id="@+id/tvNowPlaying"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="—" android:textColor="#06b6d4" android:textSize="13sp"
+            android:gravity="center" android:singleLine="true" android:ellipsize="end"
+            android:layout_marginBottom="8dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center" android:layout_marginBottom="8dp">
+            <Button android:id="@+id/btnPrev"
+                android:layout_width="52dp" android:layout_height="52dp"
+                android:text="⏮" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
+                android:layout_marginEnd="12dp"/>
+            <Button android:id="@+id/btnPlayPause"
+                android:layout_width="60dp" android:layout_height="60dp"
+                android:text="▶" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
+                android:textSize="20sp" android:layout_marginEnd="12dp"/>
+            <Button android:id="@+id/btnNext"
+                android:layout_width="52dp" android:layout_height="52dp"
+                android:text="⏭" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <TextView android:id="@+id/tvTimeNow"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="0:00" android:textColor="#64748b" android:textSize="11sp"
+                android:layout_marginEnd="8dp"/>
+            <SeekBar android:id="@+id/seekBar"
+                android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:progressTint="#7c3aed"
+                android:thumbTint="#7c3aed" android:layout_marginEnd="8dp"/>
+            <TextView android:id="@+id/tvTimeDur"
+                android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="0:00" android:textColor="#64748b" android:textSize="11sp"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

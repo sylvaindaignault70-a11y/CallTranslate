@@ -1,0 +1,150 @@
+package com.calltranslate
+
+import android.app.*
+import android.content.Intent
+import android.media.AudioManager
+import android.os.*
+import android.speech.*
+import android.speech.tts.TextToSpeech
+import android.telephony.PhoneStateListener
+import android.telephony.TelephonyManager
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.*
+import org.json.JSONArray
+import java.net.URL
+import java.net.URLEncoder
+import java.util.*
+
+class TranslationService : Service() {
+
+    companion object {
+        @Volatile var isRunning = false
+        private const val NOTIF_ID  = 10
+        private const val CHANNEL   = "call_trad"
+        private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
+        private val TTS_LOC = mapOf(
+            "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"))
+    }
+
+    private var langMoi   = "fr"
+    private var langOther = "auto"
+    private var recognizer: SpeechRecognizer? = null
+    private var tts: TextToSpeech? = null
+    private var callActive = false
+    private var listening  = false
+    private val mainH = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+
+    @Suppress("DEPRECATION")
+    private val phoneListener = object : PhoneStateListener() {
+        override fun onCallStateChanged(state: Int, number: String?) {
+            when (state) {
+                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true;  mainH.postDelayed(::doListen, 1500) }
+                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; stopListen() }
+            }
+        }
+    }
+
+    private val recListener = object : RecognitionListener {
+        override fun onResults(b: Bundle?) {
+            listening = false
+            val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+            if (!text.isNullOrBlank()) scope.launch { translateAndSpeak(text) }
+            if (callActive) mainH.postDelayed(::doListen, 500)
+        }
+        override fun onError(e: Int) {
+            listening = false
+            if (callActive) mainH.postDelayed(::doListen, 1000)
+        }
+        override fun onReadyForSpeech(p: Bundle?) {}
+        override fun onBeginningOfSpeech() {}
+        override fun onRmsChanged(v: Float) {}
+        override fun onBufferReceived(b: ByteArray?) {}
+        override fun onEndOfSpeech() {}
+        override fun onPartialResults(b: Bundle?) {}
+        override fun onEvent(t: Int, b: Bundle?) {}
+    }
+
+    override fun onCreate() { super.onCreate(); createChannel() }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, id: Int): Int {
+        langMoi   = intent?.getStringExtra("langMoi")   ?: "fr"
+        langOther = intent?.getStringExtra("langOther") ?: "auto"
+        startForeground(NOTIF_ID, buildNotif())
+        tts = TextToSpeech(this) {}
+        mainH.post {
+            recognizer = SpeechRecognizer.createSpeechRecognizer(this)
+            recognizer?.setRecognitionListener(recListener)
+        }
+        @Suppress("DEPRECATION")
+        (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)
+            .listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE)
+        isRunning = true
+        return START_STICKY
+    }
+
+    private fun doListen() {
+        if (listening || !callActive) return
+        listening = true
+        val srLang = if (langOther == "auto") "" else SR_LANG[langOther] ?: ""
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            if (srLang.isNotEmpty()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
+        }
+        recognizer?.startListening(intent)
+    }
+
+    private fun stopListen() {
+        listening = false
+        recognizer?.stopListening()
+    }
+
+    private suspend fun translateAndSpeak(text: String) {
+        try {
+            val sl = if (langOther == "auto") "auto" else langOther
+            val q  = URLEncoder.encode(text, "UTF-8")
+            val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$langMoi&dt=t&q=$q"
+            val raw = URL(url).readText()
+            val translated = JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
+            if (translated.isNotBlank()) mainH.post { speak(translated) }
+        } catch (e: Exception) { Log.e("TS", e.message ?: "") }
+    }
+
+    private fun speak(text: String) {
+        val locale = TTS_LOC[langMoi] ?: Locale.getDefault()
+        tts?.language = locale
+        val params = Bundle()
+        params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
+        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "ts${System.currentTimeMillis()}")
+    }
+
+    private fun createChannel() {
+        val ch = NotificationChannel(CHANNEL, "Traduction Appel", NotificationManager.IMPORTANCE_LOW)
+        getSystemService(NotificationManager::class.java).createNotificationChannel(ch)
+    }
+
+    private fun buildNotif(): Notification {
+        val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        return NotificationCompat.Builder(this, CHANNEL)
+            .setContentTitle("🌐 Traduction Appel ACTIVE")
+            .setContentText("MOI: $langMoi | AUTRE: $langOther — mets sur haut-parleur")
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setContentIntent(pi).build()
+    }
+
+    override fun onDestroy() {
+        isRunning = false
+        scope.cancel()
+        stopListen()
+        recognizer?.destroy()
+        tts?.shutdown()
+        @Suppress("DEPRECATION")
+        (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)
+            .listen(phoneListener, PhoneStateListener.LISTEN_NONE)
+        super.onDestroy()
+    }
+
+    override fun onBind(i: Intent?) = null
+}

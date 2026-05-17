@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#080810">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🌐 TRADUCTION APPEL"
+            android:textColor="#7c3aed"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="12dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="8dp" android:gravity="center_vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="MOI" android:textColor="#94a3b8" android:textSize="11sp" android:minWidth="48dp"/>
+            <Spinner android:id="@+id/spinCallMoi" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:background="#0f0f1a"/>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="12dp" android:gravity="center_vertical">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="AUTRE" android:textColor="#94a3b8" android:textSize="11sp" android:minWidth="48dp"/>
+            <Spinner android:id="@+id/spinCallOther" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:background="#0f0f1a"/>
+        </LinearLayout>
+
+        <Button android:id="@+id/btnCallTrad"
+            android:layout_width="match_parent" android:layout_height="48dp"
+            android:text="▶ Démarrer traduction" android:backgroundTint="#10b981"
+            android:textColor="#ffffff" android:layout_marginBottom="6dp"/>
+
+        <TextView android:id="@+id/tvCallStatus"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="Arrêté" android:textColor="#64748b" android:textSize="12sp"
+            android:gravity="center" android:layout_marginBottom="16dp"/>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="#1a1a2e" android:layout_marginBottom="16dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📞 CONTACTS"
+            android:textColor="#7c3aed"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="12dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="8dp" android:gravity="center_vertical">
+            <Button android:id="@+id/btnContacts"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="👤 Contacts" android:backgroundTint="#06b6d4" android:textColor="#ffffff"
+                android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnVider"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="✕ Vider" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"/>
+        </LinearLayout>
+
+        <TextView android:id="@+id/tvContactNum"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:text="" android:textColor="#10b981" android:textSize="14sp"
+            android:gravity="center" android:layout_marginBottom="8dp" android:minHeight="24dp"/>
+
+        <ListView android:id="@+id/listContacts"
+            android:layout_width="match_parent" android:layout_height="180dp"
+            android:visibility="gone" android:background="#0f0f1a"
+            android:layout_marginBottom="8dp"/>
+
+        <View android:layout_width="match_parent" android:layout_height="1dp"
+            android:background="#1a1a2e" android:layout_marginBottom="12dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:gravity="center_vertical">
+            <EditText android:id="@+id/etNumero"
+                android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                android:inputType="phone" android:hint="Clavier — numéro manuel"
+                android:textColor="#e2e8f0" android:textColorHint="#475569"
+                android:background="#0f0f1a" android:paddingStart="12dp"
+                android:layout_marginEnd="8dp"/>
+            <Button android:id="@+id/btnSignaler"
+                android:layout_width="wrap_content" android:layout_height="48dp"
+                android:text="Signaler" android:backgroundTint="#10b981" android:textColor="#ffffff"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
