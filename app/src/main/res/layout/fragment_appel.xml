@@ -44,7 +44,48 @@
         <TextView android:id="@+id/tvCallStatus"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:text="Arrêté" android:textColor="#64748b" android:textSize="12sp"
-            android:gravity="center" android:layout_marginBottom="16dp"/>
+            android:gravity="center" android:layout_marginBottom="8dp"/>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="8dp">
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical"
+                android:background="#0f0f1a" android:padding="8dp" android:layout_marginEnd="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="🔊 L'AUTRE" android:textColor="#64748b" android:textSize="10sp"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:id="@+id/tvCallOriginal"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="—" android:textColor="#e2e8f0" android:textSize="13sp"
+                    android:minHeight="56dp"/>
+            </LinearLayout>
+            <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:orientation="vertical"
+                android:background="#0f0f1a" android:padding="8dp" android:layout_marginStart="4dp">
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="🌐 TRADUCTION" android:textColor="#64748b" android:textSize="10sp"
+                    android:layout_marginBottom="4dp"/>
+                <TextView android:id="@+id/tvCallResult"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="—" android:textColor="#06b6d4" android:textSize="13sp"
+                    android:minHeight="56dp"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="12dp">
+            <Button android:id="@+id/btnCallRec"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="⏺ Rec" android:backgroundTint="#ef4444" android:textColor="#ffffff"
+                android:layout_marginEnd="4dp"/>
+            <Button android:id="@+id/btnCallCapture"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="📸 Capture" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
+                android:layout_marginEnd="4dp"/>
+            <Button android:id="@+id/btnCallSave"
+                android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
+                android:text="💾 Sauvegarder" android:backgroundTint="#1a1a2e" android:textColor="#06b6d4"/>
+        </LinearLayout>
 
         <View android:layout_width="match_parent" android:layout_height="1dp"
             android:background="#1a1a2e" android:layout_marginBottom="16dp"/>

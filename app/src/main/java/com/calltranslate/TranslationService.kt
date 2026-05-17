@@ -20,6 +20,8 @@ class TranslationService : Service() {
 
     companion object {
         @Volatile var isRunning = false
+        var onOriginal:   ((String) -> Unit)? = null
+        var onTranslated: ((String) -> Unit)? = null
         private const val NOTIF_ID  = 10
         private const val CHANNEL   = "call_trad"
         private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
@@ -50,7 +52,10 @@ class TranslationService : Service() {
         override fun onResults(b: Bundle?) {
             listening = false
             val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-            if (!text.isNullOrBlank()) scope.launch { translateAndSpeak(text) }
+            if (!text.isNullOrBlank()) {
+                mainH.post { onOriginal?.invoke(text) }
+                scope.launch { translateAndSpeak(text) }
+            }
             if (callActive) mainH.postDelayed(::doListen, 500)
         }
         override fun onError(e: Int) {
@@ -117,7 +122,7 @@ class TranslationService : Service() {
             conn.connectTimeout = 5000; conn.readTimeout = 5000
             val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
             val translated = JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
-            if (translated.isNotBlank()) mainH.post { speak(translated) }
+            if (translated.isNotBlank()) mainH.post { speak(translated); onTranslated?.invoke(translated) }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }
     }
 
