@@ -102,7 +102,8 @@ class EqFragment : Fragment() {
                         val lvl = (p + minLevel).toShort()
                         MusicPlayer.setBand(band, lvl)
                         val db = lvl / 100
-                        tvVal.text = "${if(db>0)"+"else""}$db"
+                        val sign = if (db > 0) "+" else ""
+                        tvVal.text = "$sign$db"
                     }
                     override fun onStartTrackingTouch(sb: SeekBar) {}
                     override fun onStopTrackingTouch(sb: SeekBar) { saveEQ() }
