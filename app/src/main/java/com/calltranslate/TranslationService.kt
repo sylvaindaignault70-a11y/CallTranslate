@@ -33,7 +33,8 @@ class TranslationService : Service() {
             "de" to "de-DE", "pt" to "pt-BR", "it" to "it-IT"
         )
         private val TTS_LOC = mapOf(
-            "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"))
+            "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"),
+            "de" to Locale.GERMAN, "pt" to Locale("pt","BR"), "it" to Locale.ITALIAN)
     }
 
     private var langMoi   = "fr"
@@ -159,22 +160,44 @@ class TranslationService : Service() {
 
     private suspend fun translateAndSpeak(text: String) {
         try {
-            val sl = if (langOther == "auto") "auto" else langOther
-            val q  = URLEncoder.encode(text, "UTF-8")
-            val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$sl&tl=$langMoi&dt=t&q=$q"
+            val q = URLEncoder.encode(text, "UTF-8")
+            // Always use sl=auto to get detected language in response
+            val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$langMoi&dt=t&q=$q"
             val conn = URL(url).openConnection() as java.net.HttpURLConnection
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
             conn.connectTimeout = 5000; conn.readTimeout = 5000
             val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
-            val translated = JSONArray(raw).getJSONArray(0).getJSONArray(0).getString(0)
-            if (translated.isNotBlank()) mainH.post { speak(translated); onTranslated?.invoke(translated) }
+            val json = JSONArray(raw)
+            val translatedToMoi = json.getJSONArray(0).getJSONArray(0).getString(0)
+            val detectedLang = try { json.getString(2) } catch (e: Exception) { "" }
+
+            if (detectedLang == langMoi && langOther != "auto") {
+                // Moi parle → traduit vers langue de l'autre
+                val q2 = URLEncoder.encode(text, "UTF-8")
+                val url2 = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$langMoi&tl=$langOther&dt=t&q=$q2"
+                val conn2 = URL(url2).openConnection() as java.net.HttpURLConnection
+                conn2.setRequestProperty("User-Agent", "Mozilla/5.0")
+                conn2.connectTimeout = 5000; conn2.readTimeout = 5000
+                val raw2 = conn2.inputStream.bufferedReader(Charsets.UTF_8).readText()
+                val tradToOther = JSONArray(raw2).getJSONArray(0).getJSONArray(0).getString(0)
+                if (tradToOther.isNotBlank()) mainH.post {
+                    speak(tradToOther, langOther)
+                    onTranslated?.invoke("→ $tradToOther")
+                }
+            } else {
+                // L'autre parle → traduit vers ma langue
+                if (translatedToMoi.isNotBlank()) mainH.post {
+                    speak(translatedToMoi, langMoi)
+                    onTranslated?.invoke(translatedToMoi)
+                }
+            }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }
     }
 
-    private fun speak(text: String) {
+    private fun speak(text: String, lang: String = langMoi) {
         ttsPlaying = true
         stopListen()  // stop SR so TTS output isn't re-captured
-        val locale = TTS_LOC[langMoi] ?: Locale.getDefault()
+        val locale = TTS_LOC[lang] ?: Locale.getDefault()
         tts?.language = locale
         val params = Bundle()
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
