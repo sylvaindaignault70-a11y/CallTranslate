@@ -105,7 +105,7 @@ class AppelFragment : Fragment() {
 
         val prefs = requireContext().getSharedPreferences("prefs", android.content.Context.MODE_PRIVATE)
         spinMoi.setSelection(LANGS_MOI.indexOfFirst { it.first == prefs.getString("callLangMoi", "fr") }.coerceAtLeast(0))
-        spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "auto") }.coerceAtLeast(0))
+        spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "en") }.coerceAtLeast(0))
 
         tvContactNum = v.findViewById(R.id.tvContactNum)
         etNumero     = v.findViewById(R.id.etNumero)
