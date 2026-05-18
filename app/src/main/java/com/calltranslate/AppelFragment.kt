@@ -4,13 +4,12 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
+import android.provider.ContactsContract
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,11 +45,21 @@ class AppelFragment : Fragment() {
     private lateinit var scrollAppelDebug: android.widget.ScrollView
     private val appelDebugLog = StringBuilder()
 
+    private lateinit var tvContactNum: TextView
+    private lateinit var etNumero: EditText
+    private var selectedTel: String? = null
+
+    private val pickContact = registerForActivityResult(
+        ActivityResultContracts.PickContact()
+    ) { uri -> uri?.let { loadContact(it) } }
+
+    private val requestCallPerm = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) signaler() }
+
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
     private val pcmChunks = mutableListOf<ByteArray>()
-    private var pendingBitmap: Bitmap? = null
-
     private val saveWavLauncher = registerForActivityResult(
         ActivityResultContracts.CreateDocument("audio/wav")
     ) { uri -> uri?.let { saveWav(it) } }
@@ -65,20 +74,6 @@ class AppelFragment : Fragment() {
             }
             tvStatus.text = "✓ Texte sauvegardé"
         } catch (e: Exception) { tvStatus.text = "⚠ Erreur" }
-    }
-
-    private val savePngLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("image/png")
-    ) { uri ->
-        uri ?: return@registerForActivityResult
-        val bmp = pendingBitmap ?: return@registerForActivityResult
-        try {
-            requireContext().contentResolver.openOutputStream(uri)?.use {
-                bmp.compress(Bitmap.CompressFormat.PNG, 100, it)
-            }
-            tvStatus.text = "✓ Capture sauvegardée"
-        } catch (e: Exception) { tvStatus.text = "⚠ Erreur capture" }
-        pendingBitmap = null
     }
 
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View =
@@ -103,6 +98,13 @@ class AppelFragment : Fragment() {
         val prefs = requireContext().getSharedPreferences("prefs", android.content.Context.MODE_PRIVATE)
         spinMoi.setSelection(LANGS_MOI.indexOfFirst { it.first == prefs.getString("callLangMoi", "fr") }.coerceAtLeast(0))
         spinOther.setSelection(LANGS_OTHER.indexOfFirst { it.first == prefs.getString("callLangOther", "auto") }.coerceAtLeast(0))
+
+        tvContactNum = v.findViewById(R.id.tvContactNum)
+        etNumero     = v.findViewById(R.id.etNumero)
+
+        v.findViewById<Button>(R.id.btnContacts).setOnClickListener { pickContact.launch(null) }
+        v.findViewById<Button>(R.id.btnVider).setOnClickListener { vider() }
+        v.findViewById<Button>(R.id.btnSignaler).setOnClickListener { signaler() }
 
         tvAppelDebugLog = v.findViewById(R.id.tvAppelDebugLog)
         tvAppelRms = v.findViewById(R.id.tvAppelRms)
@@ -139,7 +141,6 @@ class AppelFragment : Fragment() {
 
         btnTrad.setOnClickListener  { toggleTrad() }
         btnCallRec.setOnClickListener { toggleRec() }
-        v.findViewById<Button>(R.id.btnCallCapture).setOnClickListener { takeScreenshot() }
         v.findViewById<Button>(R.id.btnCallSave).setOnClickListener   { showSaveDialog() }
         v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { raccrocher() }
 
@@ -262,13 +263,40 @@ class AppelFragment : Fragment() {
             .show()
     }
 
-    private fun takeScreenshot() {
-        val rootView = requireActivity().window.decorView
-        val bmp = Bitmap.createBitmap(rootView.width, rootView.height, Bitmap.Config.ARGB_8888)
-        val canvas = Canvas(bmp)
-        rootView.draw(canvas)
-        pendingBitmap = bmp
-        savePngLauncher.launch("Capture_${timestamp()}.png")
+    private fun loadContact(uri: Uri) {
+        val proj = arrayOf(
+            ContactsContract.CommonDataKinds.Phone.NUMBER,
+            ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
+        )
+        val cursor = requireContext().contentResolver.query(
+            ContactsContract.CommonDataKinds.Phone.CONTENT_URI, proj,
+            "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
+            arrayOf(uri.lastPathSegment), null
+        )
+        cursor?.use {
+            if (it.moveToFirst()) {
+                selectedTel = it.getString(0)
+                val name = it.getString(1)
+                tvContactNum.text = "$name — $selectedTel"
+            }
+        }
+    }
+
+    private fun vider() {
+        selectedTel = null
+        tvContactNum.text = "—"
+        etNumero.text.clear()
+    }
+
+    private fun signaler() {
+        val num = selectedTel ?: etNumero.text.toString().trim()
+        if (num.isBlank()) { tvStatus.text = "⚠ Aucun numéro"; return }
+        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CALL_PHONE)
+            != PackageManager.PERMISSION_GRANTED) {
+            requestCallPerm.launch(Manifest.permission.CALL_PHONE)
+            return
+        }
+        startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$num")))
     }
 
     private fun pcmToWav(pcm: ByteArray): ByteArray {

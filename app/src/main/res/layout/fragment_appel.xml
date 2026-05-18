@@ -74,20 +74,65 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Section Contacts -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="📋 CONTACTS"
+            android:textColor="#7c3aed"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp"/>
+
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-            android:orientation="horizontal" android:layout_marginBottom="12dp">
-            <Button android:id="@+id/btnCallRec"
+            android:orientation="horizontal" android:layout_marginBottom="6dp">
+            <Button android:id="@+id/btnContacts"
                 android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:text="⏺ Rec" android:backgroundTint="#ef4444" android:textColor="#ffffff"
-                android:gravity="start|center_vertical" android:paddingStart="12dp"
-                android:layout_marginEnd="6dp"
-                android:maxLines="1"/>
-            <Button android:id="@+id/btnCallCapture"
+                android:text="📋 Contacts" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
+                android:layout_marginEnd="6dp" android:maxLines="1"/>
+            <Button android:id="@+id/btnVider"
                 android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1"
-                android:text="📸 Capture" android:backgroundTint="#1a1a2e" android:textColor="#e2e8f0"
-                android:gravity="start|center_vertical" android:paddingStart="12dp"
+                android:text="Vider" android:backgroundTint="#1a1a2e" android:textColor="#64748b"
                 android:maxLines="1"/>
         </LinearLayout>
+
+        <TextView android:id="@+id/tvContactNum"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="—"
+            android:textColor="#e2e8f0"
+            android:textSize="13sp"
+            android:background="#0f0f1a"
+            android:padding="8dp"
+            android:layout_marginBottom="6dp"/>
+
+        <EditText android:id="@+id/etNumero"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:hint="Numéro manuel"
+            android:inputType="phone"
+            android:textColor="#e2e8f0"
+            android:textColorHint="#64748b"
+            android:background="#0f0f1a"
+            android:paddingStart="12dp"
+            android:layout_marginBottom="6dp"/>
+
+        <Button android:id="@+id/btnSignaler"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="📞 Signaler"
+            android:backgroundTint="#7c3aed"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="12dp"
+            android:maxLines="1"/>
+
+        <Button android:id="@+id/btnCallRec"
+            android:layout_width="match_parent" android:layout_height="44dp"
+            android:text="⏺ Rec" android:backgroundTint="#ef4444" android:textColor="#ffffff"
+            android:gravity="start|center_vertical" android:paddingStart="12dp"
+            android:layout_marginBottom="12dp"
+            android:maxLines="1"/>
 
         <Button android:id="@+id/btnRaccrocheur"
             android:layout_width="match_parent" android:layout_height="52dp"
