@@ -63,7 +63,19 @@ class TranslationService : Service() {
         }
         override fun onError(e: Int) {
             listening = false
-            mainH.post { onStatus?.invoke("⚠ Erreur micro ($e) — relance...") }
+            val name = when(e) {
+                SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO(3)=micro bloqué"
+                SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT(5)"
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "NO_PERM(9)"
+                SpeechRecognizer.ERROR_NETWORK                -> "NETWORK(2)"
+                SpeechRecognizer.ERROR_NETWORK_TIMEOUT        -> "NET_TIMEOUT(1)"
+                SpeechRecognizer.ERROR_NO_MATCH               -> "NO_MATCH(7)=capté mais pas reconnu"
+                SpeechRecognizer.ERROR_RECOGNIZER_BUSY        -> "BUSY(8)"
+                SpeechRecognizer.ERROR_SERVER                 -> "SERVER(2)"
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT         -> "TIMEOUT(6)=aucun son détecté"
+                else -> "UNKNOWN($e)"
+            }
+            mainH.post { onStatus?.invoke("❌ $name — relance...") }
             if (callActive) mainH.postDelayed(::doListen, 1000)
         }
         override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
