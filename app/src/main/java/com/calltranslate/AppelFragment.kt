@@ -170,6 +170,10 @@ class AppelFragment : Fragment() {
             lastDirection = null
             if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = text; tvCallMoiSaid.text = "—" }
         }
+        TranslationService.onCallEnded = {
+            dbg("📵 Appel terminé — vider")
+            if (isAdded) activity?.runOnUiThread { vider(); updateTradUI() }
+        }
         TranslationService.onAutreTrad = { trad ->
             dbg("🌐 MOI comprend: $trad")
             if (isAdded) activity?.runOnUiThread {
@@ -195,7 +199,7 @@ class AppelFragment : Fragment() {
         }
         btnCallRec.setOnClickListener { toggleRec() }
         v.findViewById<Button>(R.id.btnCallSave).setOnClickListener   { showSaveDialog() }
-        v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { if (TranslationService.isRunning) toggleTrad() }
+        v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { raccrocherEtVider() }
 
         updateTradUI()
     }
@@ -440,6 +444,22 @@ class AppelFragment : Fragment() {
         }
     }
 
+    private fun raccrocherEtVider() {
+        // Stop service
+        if (TranslationService.isRunning) {
+            val ctx = requireContext()
+            ctx.stopService(Intent(ctx, TranslationService::class.java))
+            btnTrad.text = "▶ Démarrer traduction"
+            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF10b981.toInt())
+            tvStatus.text = "Arrêté"
+            tvStatus.setTextColor(0xFF64748b.toInt())
+        }
+        // Hang up call
+        raccrocher()
+        // Clear all
+        vider()
+    }
+
     private fun raccrocher() {
         if (android.os.Build.VERSION.SDK_INT >= 28) {
             if (requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS)
@@ -464,6 +484,7 @@ class AppelFragment : Fragment() {
         TranslationService.onOriginal   = null
         TranslationService.onTranslated = null
         TranslationService.onRms        = null
+        TranslationService.onCallEnded  = null
         TranslationService.onMoiSaid    = null
         TranslationService.onMoiTrad    = null
         TranslationService.onAutreSaid  = null

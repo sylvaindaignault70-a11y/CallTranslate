@@ -25,6 +25,7 @@ class TranslationService : Service() {
         var onPartial:     ((String) -> Unit)? = null
         var onStatus:      ((String) -> Unit)? = null
         var onRms:         ((Float) -> Unit)?  = null
+        var onCallEnded:   (() -> Unit)?        = null
         var onMoiSaid:     ((String) -> Unit)? = null
         var onMoiTrad:     ((String) -> Unit)? = null
         var onAutreSaid:   ((String) -> Unit)? = null
@@ -61,8 +62,7 @@ class TranslationService : Service() {
                 TelephonyManager.CALL_STATE_OFFHOOK -> { wasOffhook = true; setSpeaker(true) }
                 TelephonyManager.CALL_STATE_IDLE    -> {
                     setSpeaker(false)
-                    // Only stop if a real call ended (not initial IDLE fired on listener register)
-                    if (wasOffhook) { wasOffhook = false; stopListen(); stopSelf() }
+                    if (wasOffhook) { wasOffhook = false; stopListen(); mainH.post { onCallEnded?.invoke() }; stopSelf() }
                 }
             }
         }
