@@ -60,17 +60,17 @@ class TranslationService : Service() {
     private val recListener = object : RecognitionListener {
         override fun onResults(b: Bundle?) {
             listening = false
-            unmuteBeep()
             val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
             if (!text.isNullOrBlank()) {
                 mainH.post { onOriginal?.invoke(text); onStatus?.invoke("✓ Capté") }
                 scope.launch { translateAndSpeak(text) }
+                // doListen restart handled by TTS UtteranceProgressListener.onDone
+            } else {
+                if (isRunning) mainH.postDelayed(::doListen, 500)
             }
-            if (isRunning) mainH.postDelayed(::doListen, 500)
         }
         override fun onError(e: Int) {
             listening = false
-            unmuteBeep()
             val name = when(e) {
                 SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO(3)=micro bloqué"
                 SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT(5)"
@@ -106,6 +106,12 @@ class TranslationService : Service() {
         langOther = intent?.getStringExtra("langOther") ?: "auto"
         try { startForeground(NOTIF_ID, buildNotif()) } catch (e: Exception) { Log.e("TS","notif: ${e.message}") }
         tts = TextToSpeech(this) {}
+        tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+            override fun onStart(u: String?) {}
+            override fun onDone(u: String?) { if (isRunning) mainH.postDelayed(::doListen, 800) }
+            @Deprecated("Deprecated in Java")
+            override fun onError(u: String?) { if (isRunning) mainH.postDelayed(::doListen, 800) }
+        })
         mainH.post {
             try {
                 recognizer = SpeechRecognizer.createSpeechRecognizer(this)
@@ -134,22 +140,7 @@ class TranslationService : Service() {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             if (srLang.isNotEmpty()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
         }
-        muteBeep()
         recognizer?.startListening(intent)
-    }
-
-    private fun muteBeep() {
-        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
-            .adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0) } catch (_: Exception) {}
-        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
-            .adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0) } catch (_: Exception) {}
-    }
-
-    private fun unmuteBeep() {
-        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
-            .adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
-        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
-            .adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
     }
 
     private fun setSpeaker(on: Boolean) {
@@ -176,6 +167,7 @@ class TranslationService : Service() {
     }
 
     private fun speak(text: String) {
+        stopListen()  // stop SR so TTS output isn't re-captured
         val locale = TTS_LOC[langMoi] ?: Locale.getDefault()
         tts?.language = locale
         val params = Bundle()
