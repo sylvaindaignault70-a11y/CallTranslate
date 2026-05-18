@@ -58,6 +58,7 @@ class AppelFragment : Fragment() {
     private lateinit var tvContactNum: TextView
     private lateinit var etNumero: EditText
     private var selectedTel: String? = null
+    private var lastDirection: Boolean? = null  // true=MOI, false=AUTRE, null=auto
 
     private val pickContact = registerForActivityResult(
         ActivityResultContracts.PickContact()
@@ -147,11 +148,15 @@ class AppelFragment : Fragment() {
             if (isAdded) activity?.runOnUiThread { tvStatus.text = status }
         }
         TranslationService.onPartial = { partial ->
-            if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = "... $partial" }
+            if (isAdded) activity?.runOnUiThread {
+                if (lastDirection == true) tvCallMoiSaid.text = "... $partial"
+                else tvCallAutreSaid.text = "... $partial"
+            }
         }
         TranslationService.onMoiSaid = { text ->
             dbg("🎤 MOI: $text")
-            if (isAdded) activity?.runOnUiThread { tvCallMoiSaid.text = text }
+            lastDirection = null
+            if (isAdded) activity?.runOnUiThread { tvCallMoiSaid.text = text; tvCallAutreSaid.text = "—" }
         }
         TranslationService.onMoiTrad = { trad ->
             dbg("→ AUTRE entend: $trad")
@@ -162,7 +167,8 @@ class AppelFragment : Fragment() {
         }
         TranslationService.onAutreSaid = { text ->
             dbg("👂 AUTRE: $text")
-            if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = text }
+            lastDirection = null
+            if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = text; tvCallMoiSaid.text = "—" }
         }
         TranslationService.onAutreTrad = { trad ->
             dbg("🌐 MOI comprend: $trad")
@@ -175,12 +181,14 @@ class AppelFragment : Fragment() {
         btnTrad.setOnClickListener  { toggleTrad() }
         v.findViewById<Button>(R.id.btnCallMoi).setOnClickListener {
             if (TranslationService.isRunning) {
+                lastDirection = true
                 TranslationService.forceDirection = true
                 dbg("🎤 MOI forcé")
             }
         }
         v.findViewById<Button>(R.id.btnCallAutre).setOnClickListener {
             if (TranslationService.isRunning) {
+                lastDirection = false
                 TranslationService.forceDirection = false
                 dbg("👂 AUTRE forcé")
             }
@@ -384,9 +392,14 @@ class AppelFragment : Fragment() {
     }
 
     private fun vider() {
+        val alreadyEmpty = selectedTel == null && etNumero.text.isBlank()
+            && tvCallMoiSaid.text == "—" && tvCallAutreSaid.text == "—"
+        if (alreadyEmpty) return
         selectedTel = null
         tvContactNum.text = "—"
         etNumero.text.clear()
+        tvCallMoiSaid.text = "—"; tvCallMoiTrad.text = "—"
+        tvCallAutreSaid.text = "—"; tvCallAutreTrad.text = "—"
     }
 
     private fun signaler() {
