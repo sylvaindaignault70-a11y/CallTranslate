@@ -37,7 +37,7 @@ class TranslationService : Service() {
         const val ACTION_STOP           = "com.calltranslate.STOP_TRAD"
         private const val SAMPLE_RATE   = 16000
         private const val CHUNK_SECONDS = 4
-        private const val SILENCE_RMS   = 500.0
+        private const val SILENCE_RMS   = 150.0
 
         private val TTS_LOC = mapOf(
             "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"),

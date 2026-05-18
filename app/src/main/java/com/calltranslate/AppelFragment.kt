@@ -41,7 +41,9 @@ class AppelFragment : Fragment() {
     private lateinit var spinMoi: Spinner
     private lateinit var spinOther: Spinner
     private lateinit var btnTrad: Button
+    private lateinit var btnSpeaker: Button
     private lateinit var btnCallRec: Button
+    private var speakerOn = false
     private lateinit var tvStatus: TextView
     private lateinit var tvCallOriginal: TextView
     private lateinit var tvCallResult: TextView
@@ -100,6 +102,7 @@ class AppelFragment : Fragment() {
         spinMoi        = v.findViewById(R.id.spinCallMoi)
         spinOther      = v.findViewById(R.id.spinCallOther)
         btnTrad        = v.findViewById(R.id.btnCallTrad)
+        btnSpeaker     = v.findViewById(R.id.btnSpeaker)
         btnCallRec     = v.findViewById(R.id.btnCallRec)
         tvStatus         = v.findViewById(R.id.tvCallStatus)
         tvCallOriginal   = v.findViewById(R.id.tvCallMoiSaid)   // compat: partial results
@@ -182,7 +185,8 @@ class AppelFragment : Fragment() {
             }
         }
 
-        btnTrad.setOnClickListener  { toggleTrad() }
+        btnTrad.setOnClickListener { toggleTrad() }
+        btnSpeaker.setOnClickListener { toggleSpeaker() }
         v.findViewById<Button>(R.id.btnCallMoi).setOnClickListener {
             if (TranslationService.isRunning) {
                 lastDirection = true
@@ -236,6 +240,16 @@ class AppelFragment : Fragment() {
             tvStatus.text = "Arrêté"
             tvStatus.setTextColor(0xFF64748b.toInt())
         }
+    }
+
+    private fun toggleSpeaker() {
+        speakerOn = !speakerOn
+        val am = requireContext().getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager
+        am.isSpeakerphoneOn = speakerOn
+        btnSpeaker.text = if (speakerOn) "🔊" else "🔈"
+        btnSpeaker.backgroundTintList = android.content.res.ColorStateList.valueOf(
+            if (speakerOn) 0xFF10b981.toInt() else 0xFF1a1a2e.toInt())
+        dbg("🔊 Speaker: $speakerOn")
     }
 
     private fun toggleRec() {

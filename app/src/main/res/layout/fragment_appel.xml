@@ -36,12 +36,18 @@
             <Spinner android:id="@+id/spinCallOther" android:layout_width="0dp" android:layout_height="44dp" android:layout_weight="1" android:background="#0f0f1a"/>
         </LinearLayout>
 
-        <Button android:id="@+id/btnCallTrad"
-            android:layout_width="match_parent" android:layout_height="48dp"
-            android:text="▶ Démarrer traduction" android:backgroundTint="#10b981"
-            android:textColor="#ffffff" android:gravity="start|center_vertical"
-            android:paddingStart="16dp" android:layout_marginBottom="6dp"
-                android:maxLines="1"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="6dp">
+            <Button android:id="@+id/btnCallTrad"
+                android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1"
+                android:text="▶ Démarrer traduction" android:backgroundTint="#10b981"
+                android:textColor="#ffffff" android:gravity="start|center_vertical"
+                android:paddingStart="16dp" android:maxLines="1" android:layout_marginEnd="6dp"/>
+            <Button android:id="@+id/btnSpeaker"
+                android:layout_width="56dp" android:layout_height="48dp"
+                android:text="🔈" android:backgroundTint="#1a1a2e" android:textColor="#94a3b8"
+                android:maxLines="1" android:textSize="20sp" android:padding="0dp"/>
+        </LinearLayout>
 
         <TextView android:id="@+id/tvCallStatus"
             android:layout_width="match_parent" android:layout_height="wrap_content"
