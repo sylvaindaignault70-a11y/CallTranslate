@@ -2,9 +2,8 @@ package com.calltranslate
 
 import android.app.*
 import android.content.Intent
-import android.media.AudioManager
+import android.media.*
 import android.os.*
-import android.speech.*
 import android.speech.tts.TextToSpeech
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
@@ -12,6 +11,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
 import java.util.*
@@ -19,41 +19,41 @@ import java.util.*
 class TranslationService : Service() {
 
     companion object {
-        @Volatile var isRunning = false
-        var onOriginal:    ((String) -> Unit)? = null
-        var onTranslated:  ((String) -> Unit)? = null
-        var onPartial:     ((String) -> Unit)? = null
-        var onStatus:      ((String) -> Unit)? = null
-        var onRms:         ((Float) -> Unit)?  = null
-        var onCallEnded:   (() -> Unit)?        = null
-        var onMoiSaid:     ((String) -> Unit)? = null
-        var onMoiTrad:     ((String) -> Unit)? = null
-        var onAutreSaid:   ((String) -> Unit)? = null
-        var onAutreTrad:   ((String) -> Unit)? = null
-        // null=auto-detect, true=force MOI, false=force AUTRE
+        @Volatile var isRunning  = false
+        var onOriginal:  ((String) -> Unit)? = null
+        var onTranslated:((String) -> Unit)? = null
+        var onPartial:   ((String) -> Unit)? = null
+        var onStatus:    ((String) -> Unit)? = null
+        var onRms:       ((Float)  -> Unit)? = null
+        var onCallEnded: (() -> Unit)?       = null
+        var onMoiSaid:   ((String) -> Unit)? = null
+        var onMoiTrad:   ((String) -> Unit)? = null
+        var onAutreSaid: ((String) -> Unit)? = null
+        var onAutreTrad: ((String) -> Unit)? = null
         @Volatile var forceDirection: Boolean? = null
-        private const val NOTIF_ID   = 10
-        private const val CHANNEL    = "call_trad"
-        const val ACTION_STOP        = "com.calltranslate.STOP_TRAD"
-        private val SR_LANG = mapOf(
-            "fr" to "fr-FR", "en" to "en-US", "es" to "es-ES",
-            "de" to "de-DE", "pt" to "pt-BR", "it" to "it-IT"
-        )
+
+        private const val NOTIF_ID      = 10
+        private const val CHANNEL       = "call_trad"
+        const val ACTION_STOP           = "com.calltranslate.STOP_TRAD"
+        private const val SAMPLE_RATE   = 16000
+        private const val CHUNK_SECONDS = 4
+        private const val SILENCE_RMS   = 500.0
+
         private val TTS_LOC = mapOf(
             "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"),
             "de" to Locale.GERMAN, "pt" to Locale("pt","BR"), "it" to Locale.ITALIAN)
+        private val WHISPER_LANG = mapOf(
+            "french" to "fr", "english" to "en", "spanish" to "es",
+            "german" to "de", "portuguese" to "pt", "italian" to "it")
     }
 
     private var langMoi   = "fr"
     private var langOther = "auto"
-    private var recognizer: SpeechRecognizer? = null
+    private var wasOffhook = false
     private var tts: TextToSpeech? = null
-    private var callActive    = false
-    private var wasOffhook    = false
-    private var listening     = false
-    @Volatile private var ttsPlaying = false
-    @Volatile private var noMatchRetried = false
-    private var listenedInOtherLang = false
+    @Volatile private var ttsPlaying  = false
+    @Volatile private var isCapturing = false
+    private var audioRecord: AudioRecord? = null
     private val mainH = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -62,60 +62,12 @@ class TranslationService : Service() {
         override fun onCallStateChanged(state: Int, number: String?) {
             when (state) {
                 TelephonyManager.CALL_STATE_OFFHOOK -> { wasOffhook = true; setSpeaker(true) }
-                TelephonyManager.CALL_STATE_IDLE    -> {
+                TelephonyManager.CALL_STATE_IDLE -> {
                     setSpeaker(false)
-                    if (wasOffhook) { wasOffhook = false; stopListen(); mainH.post { onCallEnded?.invoke() }; stopSelf() }
+                    if (wasOffhook) { wasOffhook = false; stopCapture(); mainH.post { onCallEnded?.invoke() }; stopSelf() }
                 }
             }
         }
-    }
-
-    private val recListener = object : RecognitionListener {
-        override fun onResults(b: Bundle?) {
-            listening = false
-            val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-            if (!text.isNullOrBlank()) {
-                noMatchRetried = false
-                if (listenedInOtherLang && forceDirection == null) forceDirection = false
-                mainH.post { onOriginal?.invoke(text); onStatus?.invoke("✓ Capté") }
-                scope.launch { translateAndSpeak(text) }
-            } else {
-                if (isRunning && !ttsPlaying) mainH.postDelayed({ doListen() }, 500)
-            }
-        }
-        override fun onError(e: Int) {
-            listening = false
-            val name = when(e) {
-                SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO(3)=micro bloqué"
-                SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT(5)"
-                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "NO_PERM(9)"
-                SpeechRecognizer.ERROR_NETWORK                -> "NETWORK(2)"
-                SpeechRecognizer.ERROR_NETWORK_TIMEOUT        -> "NET_TIMEOUT(1)"
-                SpeechRecognizer.ERROR_NO_MATCH               -> "NO_MATCH(7)=capté mais pas reconnu"
-                SpeechRecognizer.ERROR_RECOGNIZER_BUSY        -> "BUSY(8)"
-                SpeechRecognizer.ERROR_SERVER                 -> "SERVER(2)"
-                SpeechRecognizer.ERROR_SPEECH_TIMEOUT         -> "TIMEOUT(6)=aucun son détecté"
-                else -> "UNKNOWN($e)"
-            }
-            mainH.post { onStatus?.invoke("❌ $name — relance...") }
-            if (e == SpeechRecognizer.ERROR_NO_MATCH && forceDirection == null && !noMatchRetried && langOther != "auto") {
-                noMatchRetried = true
-                mainH.postDelayed({ doListen(otherLang = true) }, 300)
-            } else {
-                noMatchRetried = false
-                if (isRunning && !ttsPlaying) mainH.postDelayed({ doListen() }, 1000)
-            }
-        }
-        override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
-        override fun onBeginningOfSpeech() { mainH.post { onStatus?.invoke("🔊 Parole détectée") } }
-        override fun onRmsChanged(v: Float) { onRms?.invoke(v) }
-        override fun onBufferReceived(b: ByteArray?) {}
-        override fun onEndOfSpeech() { mainH.post { onStatus?.invoke("⏹ Fin parole") } }
-        override fun onPartialResults(b: Bundle?) {
-            val partial = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
-            if (!partial.isNullOrBlank()) mainH.post { onPartial?.invoke(partial) }
-        }
-        override fun onEvent(t: Int, b: Bundle?) {}
     }
 
     override fun onCreate() { super.onCreate(); createChannel() }
@@ -128,63 +80,154 @@ class TranslationService : Service() {
         tts = TextToSpeech(this) {}
         tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
             override fun onStart(u: String?) {}
-            override fun onDone(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed({ doListen() }, 800) }
+            override fun onDone(u: String?)  { ttsPlaying = false }
             @Deprecated("Deprecated in Java")
-            override fun onError(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed({ doListen() }, 800) }
+            override fun onError(u: String?) { ttsPlaying = false }
         })
-        mainH.post {
-            try {
-                recognizer = SpeechRecognizer.createSpeechRecognizer(this)
-                recognizer?.setRecognitionListener(recListener)
-            } catch (e: Exception) { Log.e("TS","sr: ${e.message}") }
-        }
         val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         @Suppress("DEPRECATION")
         tm.listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE)
-        // Start listening immediately — don't wait for PhoneStateListener (deprecated on API 31+)
-        callActive = true
         if (tm.callState == TelephonyManager.CALL_STATE_OFFHOOK) setSpeaker(true)
-        mainH.postDelayed({ doListen() }, 1500)
         isRunning = true
+        mainH.postDelayed({ startCapture() }, 1500)
         return START_STICKY
     }
 
-    private fun doListen(otherLang: Boolean = false) {
-        if (listening || ttsPlaying) return
-        listening = true
-        listenedInOtherLang = otherLang
-        mainH.post { onStatus?.invoke("🎤 Écoute...") }
-        val moiLang   = SR_LANG[langMoi] ?: "fr-FR"
-        val autreLang = if (langOther == "auto") "en-US" else SR_LANG[langOther] ?: "en-US"
-        val srLang = when {
-            forceDirection == true  -> moiLang
-            forceDirection == false -> autreLang
-            otherLang -> autreLang   // auto-retry en langue de l'autre après NO_MATCH
-            else -> moiLang
+    private fun startCapture() {
+        val minBuf = AudioRecord.getMinBufferSize(
+            SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
+            .coerceAtLeast(SAMPLE_RATE * 2)
+
+        audioRecord = AudioRecord(
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION, SAMPLE_RATE,
+            AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, minBuf)
+
+        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+            mainH.post { onStatus?.invoke("⚠ VOICE_COMM bloqué → MIC") }
+            audioRecord?.release()
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, minBuf)
         }
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
-            putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf<String>())
+        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+            mainH.post { onStatus?.invoke("❌ Micro inaccessible") }
+            audioRecord?.release(); audioRecord = null; return
         }
-        recognizer?.startListening(intent)
+
+        audioRecord?.startRecording()
+        isCapturing = true
+        mainH.post { onStatus?.invoke("🎤 Capture audio...") }
+
+        scope.launch {
+            val chunkTarget = SAMPLE_RATE * 2 * CHUNK_SECONDS
+            val readBuf = ByteArray(minBuf)
+            val accumulated = mutableListOf<ByteArray>()
+            var accSize = 0
+
+            while (isCapturing && isRunning) {
+                if (ttsPlaying) {
+                    accumulated.clear(); accSize = 0
+                    delay(100); continue
+                }
+                val n = audioRecord?.read(readBuf, 0, readBuf.size) ?: -1
+                if (n <= 0) { delay(20); continue }
+
+                val chunk = readBuf.copyOf(n)
+                accumulated.add(chunk)
+                accSize += n
+
+                val rms = rmsOf(chunk).toFloat()
+                mainH.post { onRms?.invoke(rms / 3276.8f) }
+
+                if (accSize >= chunkTarget) {
+                    val pcm = accumulated.flatMap { it.toList() }.toByteArray()
+                    accumulated.clear(); accSize = 0
+                    val pcmRms = rmsOf(pcm)
+                    if (pcmRms >= SILENCE_RMS) {
+                        transcribeWhisper(pcm)
+                    } else {
+                        mainH.post { onStatus?.invoke("🔇 Silence") }
+                    }
+                }
+            }
+        }
     }
 
-    private fun setSpeaker(on: Boolean) {
-        (getSystemService(AUDIO_SERVICE) as AudioManager).isSpeakerphoneOn = on
+    private fun rmsOf(pcm: ByteArray): Double {
+        var sum = 0.0
+        var i = 0
+        while (i < pcm.size - 1) {
+            val s = ((pcm[i].toInt() and 0xFF) or (pcm[i + 1].toInt() shl 8)).toShort().toDouble()
+            sum += s * s; i += 2
+        }
+        return if (pcm.size >= 2) Math.sqrt(sum / (pcm.size / 2)) else 0.0
     }
 
-    private fun stopListen() {
-        listening = false
-        recognizer?.stopListening()
+    private suspend fun transcribeWhisper(pcm: ByteArray) {
+        try {
+            val apiKey = SettingsFragment.getApiKey(this)
+            if (apiKey.isBlank()) {
+                mainH.post { onStatus?.invoke("⚠ Clef OpenAI manquante → onglet Réglages") }
+                return
+            }
+            mainH.post { onStatus?.invoke("☁ Whisper...") }
+            val wav = pcmToWav(pcm)
+            val boundary = "Bound${System.currentTimeMillis()}"
+
+            val conn = URL("https://api.openai.com/v1/audio/transcriptions")
+                .openConnection() as java.net.HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.setRequestProperty("Authorization", "Bearer $apiKey")
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            conn.doOutput = true
+            conn.connectTimeout = 15000
+            conn.readTimeout   = 15000
+
+            conn.outputStream.use { out ->
+                fun w(s: String) = out.write(s.toByteArray(Charsets.UTF_8))
+                w("--$boundary\r\nContent-Disposition: form-data; name=\"model\"\r\n\r\nwhisper-1\r\n")
+                w("--$boundary\r\nContent-Disposition: form-data; name=\"response_format\"\r\n\r\nverbose_json\r\n")
+                w("--$boundary\r\nContent-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\nContent-Type: audio/wav\r\n\r\n")
+                out.write(wav)
+                w("\r\n--$boundary--\r\n")
+            }
+
+            val code = conn.responseCode
+            val body = if (code == 200) conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
+                       else conn.errorStream?.bufferedReader(Charsets.UTF_8)?.readText() ?: "HTTP $code"
+
+            if (code != 200) {
+                mainH.post { onStatus?.invoke("⚠ Whisper $code: ${body.take(80)}") }
+                return
+            }
+
+            val json = JSONObject(body)
+            val text = json.getString("text").trim()
+            val whisperLang = json.optString("language", "").lowercase()
+            val detectedCode = WHISPER_LANG[whisperLang] ?: ""
+
+            if (text.isBlank()) {
+                mainH.post { onStatus?.invoke("🔇 Whisper: rien") }
+                return
+            }
+            mainH.post { onStatus?.invoke("✓ [$whisperLang] $text") }
+
+            // Auto-direction from Whisper detected language
+            if (forceDirection == null && detectedCode.isNotEmpty()) {
+                forceDirection = (detectedCode == langMoi)
+            }
+            mainH.post { onOriginal?.invoke(text) }
+            translateAndSpeak(text)
+
+        } catch (e: Exception) {
+            Log.e("TS", "whisper: ${e.message}")
+            mainH.post { onStatus?.invoke("⚠ ${e.message?.take(60)}") }
+        }
     }
 
     private suspend fun translateAndSpeak(text: String) {
         try {
             val q = URLEncoder.encode(text, "UTF-8")
-            // Always use sl=auto to get detected language in response
             val url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$langMoi&dt=t&q=$q"
             val conn = URL(url).openConnection() as java.net.HttpURLConnection
             conn.setRequestProperty("User-Agent", "Mozilla/5.0")
@@ -195,8 +238,9 @@ class TranslationService : Service() {
             val detectedLang = try {
                 if (json.length() > 2 && !json.isNull(2)) json.getString(2) else ""
             } catch (e: Exception) { "" }
+
             val dir = forceDirection
-            forceDirection = null  // reset après usage
+            forceDirection = null
             val isMoiSpeaking = when (dir) {
                 true  -> true
                 false -> false
@@ -205,10 +249,9 @@ class TranslationService : Service() {
                     else -> translatedToMoi.trim().equals(text.trim(), ignoreCase = true)
                 }
             }
-            mainH.post { onStatus?.invoke("🔍 détecté:$detectedLang force:$dir moi=$langMoi") }
+            mainH.post { onStatus?.invoke("🔍 détecté:$detectedLang moi=$langMoi") }
 
             if (isMoiSpeaking && langOther != "auto") {
-                // Moi parle → traduit vers langue de l'autre
                 mainH.post { onMoiSaid?.invoke(text); onOriginal?.invoke(text) }
                 val q2 = URLEncoder.encode(text, "UTF-8")
                 val url2 = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$langMoi&tl=$langOther&dt=t&q=$q2"
@@ -222,28 +265,50 @@ class TranslationService : Service() {
                     onMoiTrad?.invoke(tradToOther); onTranslated?.invoke("→ $tradToOther")
                 }
             } else if (translatedToMoi.isNotBlank() && !translatedToMoi.trim().equals(text.trim(), ignoreCase = true)) {
-                // L'autre parle → traduit vers ma langue
                 mainH.post { onAutreSaid?.invoke(text); onOriginal?.invoke(text) }
                 mainH.post {
                     speak(translatedToMoi, langMoi)
                     onAutreTrad?.invoke(translatedToMoi); onTranslated?.invoke(translatedToMoi)
                 }
             } else {
-                // Même texte = boucle ou langue identique, ignorer
                 mainH.post { onStatus?.invoke("⚠ ignoré (même langue ou boucle)") }
-                if (isRunning) mainH.postDelayed({ doListen() }, 500)
             }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }
     }
 
     private fun speak(text: String, lang: String = langMoi) {
         ttsPlaying = true
-        stopListen()  // stop SR so TTS output isn't re-captured
         val locale = TTS_LOC[lang] ?: Locale.getDefault()
         tts?.language = locale
         val params = Bundle()
         params.putInt(TextToSpeech.Engine.KEY_PARAM_STREAM, AudioManager.STREAM_MUSIC)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, params, "ts${System.currentTimeMillis()}")
+    }
+
+    private fun stopCapture() {
+        isCapturing = false
+        try { audioRecord?.stop() } catch (e: Exception) {}
+        audioRecord?.release()
+        audioRecord = null
+    }
+
+    private fun setSpeaker(on: Boolean) {
+        (getSystemService(AUDIO_SERVICE) as AudioManager).isSpeakerphoneOn = on
+    }
+
+    private fun pcmToWav(pcm: ByteArray): ByteArray {
+        val ch = 1; val bits = 16
+        val byteRate = SAMPLE_RATE * ch * bits / 8
+        val out = java.io.ByteArrayOutputStream()
+        fun Int.le4() = byteArrayOf(toByte(), shr(8).toByte(), shr(16).toByte(), shr(24).toByte())
+        fun Short.le2() = byteArrayOf(toByte(), toInt().shr(8).toByte())
+        out.write("RIFF".toByteArray()); out.write((36 + pcm.size).le4())
+        out.write("WAVE".toByteArray()); out.write("fmt ".toByteArray())
+        out.write(16.le4()); out.write(1.toShort().le2()); out.write(ch.toShort().le2())
+        out.write(SAMPLE_RATE.le4()); out.write(byteRate.le4())
+        out.write((ch * bits / 8).toShort().le2()); out.write(bits.toShort().le2())
+        out.write("data".toByteArray()); out.write(pcm.size.le4()); out.write(pcm)
+        return out.toByteArray()
     }
 
     private fun createChannel() {
@@ -258,7 +323,7 @@ class TranslationService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return NotificationCompat.Builder(this, CHANNEL)
             .setContentTitle("🌐 Traduction Appel ACTIVE")
-            .setContentText("MOI: $langMoi | AUTRE: $langOther — mets sur haut-parleur")
+            .setContentText("MOI: $langMoi | AUTRE: $langOther — Whisper STT")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setContentIntent(pi)
             .addAction(android.R.drawable.ic_media_pause, "⏹ Arrêter", stopPI)
@@ -268,8 +333,7 @@ class TranslationService : Service() {
     override fun onDestroy() {
         isRunning = false
         scope.cancel()
-        stopListen()
-        recognizer?.destroy()
+        stopCapture()
         tts?.shutdown()
         @Suppress("DEPRECATION")
         (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)
