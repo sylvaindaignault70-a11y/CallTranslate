@@ -142,7 +142,10 @@ class TranslationService : Service() {
         if (listening || ttsPlaying) return
         listening = true
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
-        val srLang = if (langOther == "auto") "fr-FR,en-US,es-ES,de-DE,pt-BR,it-IT" else SR_LANG[langOther] ?: ""
+        val moiLang   = SR_LANG[langMoi] ?: "fr-FR"
+        val autreLang = if (langOther == "auto") "en-US,es-ES,de-DE,pt-BR,it-IT"
+                        else SR_LANG[langOther] ?: "en-US"
+        val srLang = "$moiLang,$autreLang"
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
@@ -173,9 +176,17 @@ class TranslationService : Service() {
             val raw = conn.inputStream.bufferedReader(Charsets.UTF_8).readText()
             val json = JSONArray(raw)
             val translatedToMoi = json.getJSONArray(0).getJSONArray(0).getString(0)
-            val detectedLang = try { json.getString(2) } catch (e: Exception) { "" }
+            val detectedLang = try {
+                if (json.length() > 2 && !json.isNull(2)) json.getString(2) else ""
+            } catch (e: Exception) { "" }
+            // Fallback: if translation == original, source is same as langMoi → user is speaking
+            val isMoiSpeaking = when {
+                detectedLang.isNotEmpty() -> detectedLang == langMoi
+                else -> translatedToMoi.trim().equals(text.trim(), ignoreCase = true)
+            }
+            mainH.post { onStatus?.invoke("🔍 détecté: $detectedLang moi=$langMoi autre=$langOther") }
 
-            if (detectedLang == langMoi && langOther != "auto") {
+            if (isMoiSpeaking && langOther != "auto") {
                 // Moi parle → traduit vers langue de l'autre
                 mainH.post { onMoiSaid?.invoke(text); onOriginal?.invoke(text) }
                 val q2 = URLEncoder.encode(text, "UTF-8")
@@ -189,13 +200,17 @@ class TranslationService : Service() {
                     speak(tradToOther, langOther)
                     onMoiTrad?.invoke(tradToOther); onTranslated?.invoke("→ $tradToOther")
                 }
-            } else {
+            } else if (translatedToMoi.isNotBlank() && !translatedToMoi.trim().equals(text.trim(), ignoreCase = true)) {
                 // L'autre parle → traduit vers ma langue
                 mainH.post { onAutreSaid?.invoke(text); onOriginal?.invoke(text) }
-                if (translatedToMoi.isNotBlank()) mainH.post {
+                mainH.post {
                     speak(translatedToMoi, langMoi)
                     onAutreTrad?.invoke(translatedToMoi); onTranslated?.invoke(translatedToMoi)
                 }
+            } else {
+                // Même texte = boucle ou langue identique, ignorer
+                mainH.post { onStatus?.invoke("⚠ ignoré (même langue ou boucle)") }
+                if (isRunning) mainH.postDelayed(::doListen, 500)
             }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }
     }
