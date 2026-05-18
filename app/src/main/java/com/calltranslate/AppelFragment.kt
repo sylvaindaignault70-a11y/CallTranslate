@@ -243,6 +243,18 @@ class AppelFragment : Fragment() {
         audioRecord = null
     }
 
+    private fun saveWav(uri: Uri) {
+        scope.launch {
+            try {
+                val pcm = synchronized(pcmChunks) { pcmChunks.flatMap { it.toList() }.toByteArray() }
+                requireContext().contentResolver.openOutputStream(uri)?.use { it.write(pcmToWav(pcm)) }
+                if (isAdded) requireActivity().runOnUiThread { tvStatus.text = "✓ Audio sauvegardé" }
+            } catch (e: Exception) {
+                if (isAdded) requireActivity().runOnUiThread { tvStatus.text = "⚠ Erreur audio" }
+            }
+        }
+    }
+
     private fun saveWavDirect() {
         val count = synchronized(pcmChunks) { pcmChunks.size }
         dbg("💾 Rec stop: $count chunks")
