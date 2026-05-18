@@ -66,11 +66,11 @@ class TranslationService : Service() {
             mainH.post { onStatus?.invoke("⚠ Erreur micro ($e) — relance...") }
             if (callActive) mainH.postDelayed(::doListen, 1000)
         }
-        override fun onReadyForSpeech(p: Bundle?) {}
-        override fun onBeginningOfSpeech() {}
+        override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
+        override fun onBeginningOfSpeech() { mainH.post { onStatus?.invoke("🔊 Parole détectée") } }
         override fun onRmsChanged(v: Float) { onRms?.invoke(v) }
         override fun onBufferReceived(b: ByteArray?) {}
-        override fun onEndOfSpeech() {}
+        override fun onEndOfSpeech() { mainH.post { onStatus?.invoke("⏹ Fin parole") } }
         override fun onPartialResults(b: Bundle?) {
             val partial = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
             if (!partial.isNullOrBlank()) mainH.post { onPartial?.invoke(partial) }

@@ -166,11 +166,12 @@
         <ProgressBar android:id="@+id/pbAppelRms"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="6dp"
+            android:layout_height="16dp"
             android:max="100"
             android:progress="0"
             android:progressTint="#f59e0b"
-            android:layout_marginBottom="4dp"/>
+            android:progressBackgroundTint="#1a1a2e"
+            android:layout_marginBottom="6dp"/>
 
         <ScrollView android:id="@+id/scrollAppelDebug"
             android:layout_width="match_parent" android:layout_height="200dp"

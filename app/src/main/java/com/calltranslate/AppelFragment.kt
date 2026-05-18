@@ -167,8 +167,10 @@ class AppelFragment : Fragment() {
         prefs.edit().putString("callLangMoi", langMoi).putString("callLangOther", langOther).apply()
 
         if (TranslationService.isRunning) {
+            dbg("⏹ Arrêt service traduction")
             ctx.stopService(Intent(ctx, TranslationService::class.java))
         } else {
+            dbg("▶ Démarrage service: moi=$langMoi autre=$langOther")
             val intent = Intent(ctx, TranslationService::class.java).apply {
                 putExtra("langMoi", langMoi)
                 putExtra("langOther", langOther)
@@ -315,6 +317,7 @@ class AppelFragment : Fragment() {
     }
 
     private fun loadContact(uri: Uri) {
+        dbg("📋 loadContact: uri=$uri lastSeg=${uri.lastPathSegment}")
         val proj = arrayOf(
             ContactsContract.CommonDataKinds.Phone.NUMBER,
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME
@@ -324,11 +327,16 @@ class AppelFragment : Fragment() {
             "${ContactsContract.CommonDataKinds.Phone.CONTACT_ID} = ?",
             arrayOf(uri.lastPathSegment), null
         )
-        cursor?.use {
+        if (cursor == null) { dbg("⚠ loadContact: cursor null"); return }
+        cursor.use {
             if (it.moveToFirst()) {
                 selectedTel = it.getString(0)
                 val name = it.getString(1)
                 tvContactNum.text = "$name — $selectedTel"
+                dbg("✓ Contact: $name $selectedTel")
+            } else {
+                dbg("⚠ loadContact: aucun numéro pour ce contact")
+                tvContactNum.text = "⚠ Pas de numéro"
             }
         }
     }
@@ -341,12 +349,15 @@ class AppelFragment : Fragment() {
 
     private fun signaler() {
         val num = selectedTel ?: etNumero.text.toString().trim()
-        if (num.isBlank()) { tvStatus.text = "⚠ Aucun numéro"; return }
+        dbg("📞 Signaler: num='$num' selectedTel=$selectedTel")
+        if (num.isBlank()) { tvStatus.text = "⚠ Aucun numéro sélectionné"; dbg("⚠ Signaler: aucun numéro"); return }
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.CALL_PHONE)
             != PackageManager.PERMISSION_GRANTED) {
+            dbg("📞 Signaler: demande permission CALL_PHONE")
             requestCallPerm.launch(Manifest.permission.CALL_PHONE)
             return
         }
+        dbg("📞 Signaler: ACTION_CALL tel:$num")
         startActivity(Intent(Intent.ACTION_CALL, Uri.parse("tel:$num")))
     }
 
