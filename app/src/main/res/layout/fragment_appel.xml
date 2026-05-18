@@ -136,7 +136,7 @@
 
         <Button android:id="@+id/btnRaccrocheur"
             android:layout_width="match_parent" android:layout_height="52dp"
-            android:text="📵 Raccrocher" android:backgroundTint="#7f1d1d" android:textColor="#fca5a5"
+            android:text="⏹ Arrêter traduction" android:backgroundTint="#7f1d1d" android:textColor="#fca5a5"
             android:layout_marginBottom="8dp" android:maxLines="1"/>
 
         <Button android:id="@+id/btnCallSave"

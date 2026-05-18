@@ -155,7 +155,7 @@ class AppelFragment : Fragment() {
         btnTrad.setOnClickListener  { toggleTrad() }
         btnCallRec.setOnClickListener { toggleRec() }
         v.findViewById<Button>(R.id.btnCallSave).setOnClickListener   { showSaveDialog() }
-        v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { raccrocher() }
+        v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { if (TranslationService.isRunning) toggleTrad() }
 
         updateTradUI()
     }

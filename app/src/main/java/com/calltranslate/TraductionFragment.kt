@@ -108,17 +108,7 @@ class TraductionFragment : Fragment() {
         v.findViewById<Button>(R.id.btnDebugClear).setOnClickListener {
             debugLog.clear(); tvDebugLog.text = ""
         }
-        v.findViewById<Button>(R.id.btnRaccrocher).setOnClickListener {
-            try {
-                val tm = requireContext().getSystemService(android.telecom.TelecomManager::class.java)
-                if (android.os.Build.VERSION.SDK_INT >= 28 &&
-                    requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    tm?.endCall()
-                } else {
-                    requireActivity().sendBroadcast(android.content.Intent(android.content.Intent.ACTION_CLOSE_SYSTEM_DIALOGS))
-                }
-            } catch (e: Exception) { dbg("Raccrocher err: ${e.message}") }
-        }
+        v.findViewById<Button>(R.id.btnRaccrocher).setOnClickListener { stopAndSave() }
 
         val labels = LANGS.map { it.second }
         spinMoi.adapter   = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_dropdown_item, labels)
@@ -153,7 +143,6 @@ class TraductionFragment : Fragment() {
     }
 
     private fun startListen(isMe: Boolean) {
-        if (!isRecording) startAudioRecording()
         val srcLang = if (isMe) langMoi() else langOther()
         val srLocale = SR_LOCALE[srcLang] ?: "fr-FR"
 

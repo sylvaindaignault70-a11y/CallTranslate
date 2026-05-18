@@ -56,7 +56,7 @@
 
         <Button android:id="@+id/btnRaccrocher"
             android:layout_width="match_parent" android:layout_height="44dp"
-            android:text="📵 Raccrocher" android:backgroundTint="#7f1d1d" android:textColor="#fca5a5"
+            android:text="⏹ Arrêter" android:backgroundTint="#7f1d1d" android:textColor="#fca5a5"
             android:layout_marginBottom="8dp" android:maxLines="1"/>
 
         <TextView android:id="@+id/tvTradStatus"
