@@ -173,6 +173,18 @@ class AppelFragment : Fragment() {
         }
 
         btnTrad.setOnClickListener  { toggleTrad() }
+        v.findViewById<Button>(R.id.btnCallMoi).setOnClickListener {
+            if (TranslationService.isRunning) {
+                TranslationService.forceDirection = true
+                dbg("🎤 MOI forcé")
+            }
+        }
+        v.findViewById<Button>(R.id.btnCallAutre).setOnClickListener {
+            if (TranslationService.isRunning) {
+                TranslationService.forceDirection = false
+                dbg("👂 AUTRE forcé")
+            }
+        }
         btnCallRec.setOnClickListener { toggleRec() }
         v.findViewById<Button>(R.id.btnCallSave).setOnClickListener   { showSaveDialog() }
         v.findViewById<Button>(R.id.btnRaccrocheur).setOnClickListener { if (TranslationService.isRunning) toggleTrad() }

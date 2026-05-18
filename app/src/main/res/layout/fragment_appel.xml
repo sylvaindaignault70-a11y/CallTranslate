@@ -48,6 +48,18 @@
             android:text="Arrêté" android:textColor="#64748b" android:textSize="12sp"
             android:gravity="center" android:layout_marginBottom="8dp"/>
 
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="6dp">
+            <Button android:id="@+id/btnCallMoi"
+                android:layout_width="0dp" android:layout_height="52dp" android:layout_weight="1"
+                android:text="🎤 MOI" android:backgroundTint="#7c3aed" android:textColor="#ffffff"
+                android:layout_marginEnd="6dp" android:maxLines="1"/>
+            <Button android:id="@+id/btnCallAutre"
+                android:layout_width="0dp" android:layout_height="52dp" android:layout_weight="1"
+                android:text="👂 AUTRE" android:backgroundTint="#06b6d4" android:textColor="#ffffff"
+                android:maxLines="1"/>
+        </LinearLayout>
+
         <!-- MOI → AUTRE -->
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
             android:orientation="horizontal" android:layout_marginBottom="4dp">

@@ -29,6 +29,8 @@ class TranslationService : Service() {
         var onMoiTrad:     ((String) -> Unit)? = null
         var onAutreSaid:   ((String) -> Unit)? = null
         var onAutreTrad:   ((String) -> Unit)? = null
+        // null=auto-detect, true=force MOI, false=force AUTRE
+        @Volatile var forceDirection: Boolean? = null
         private const val NOTIF_ID   = 10
         private const val CHANNEL    = "call_trad"
         const val ACTION_STOP        = "com.calltranslate.STOP_TRAD"
@@ -143,9 +145,12 @@ class TranslationService : Service() {
         listening = true
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
         val moiLang   = SR_LANG[langMoi] ?: "fr-FR"
-        val autreLang = if (langOther == "auto") "en-US,es-ES,de-DE,pt-BR,it-IT"
-                        else SR_LANG[langOther] ?: "en-US"
-        val srLang = "$moiLang,$autreLang"
+        val autreLang = if (langOther == "auto") "en-US" else SR_LANG[langOther] ?: "en-US"
+        val srLang = when (forceDirection) {
+            true  -> moiLang   // MOI appuie → écoute en langMoi
+            false -> autreLang // AUTRE appuie → écoute en langOther
+            null  -> moiLang   // auto: écoute langMoi par défaut
+        }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
@@ -179,12 +184,17 @@ class TranslationService : Service() {
             val detectedLang = try {
                 if (json.length() > 2 && !json.isNull(2)) json.getString(2) else ""
             } catch (e: Exception) { "" }
-            // Fallback: if translation == original, source is same as langMoi → user is speaking
-            val isMoiSpeaking = when {
-                detectedLang.isNotEmpty() -> detectedLang == langMoi
-                else -> translatedToMoi.trim().equals(text.trim(), ignoreCase = true)
+            val dir = forceDirection
+            forceDirection = null  // reset après usage
+            val isMoiSpeaking = when (dir) {
+                true  -> true
+                false -> false
+                null  -> when {
+                    detectedLang.isNotEmpty() -> detectedLang == langMoi
+                    else -> translatedToMoi.trim().equals(text.trim(), ignoreCase = true)
+                }
             }
-            mainH.post { onStatus?.invoke("🔍 détecté: $detectedLang moi=$langMoi autre=$langOther") }
+            mainH.post { onStatus?.invoke("🔍 détecté:$detectedLang force:$dir moi=$langMoi") }
 
             if (isMoiSpeaking && langOther != "auto") {
                 // Moi parle → traduit vers langue de l'autre
