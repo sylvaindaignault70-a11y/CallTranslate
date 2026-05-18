@@ -36,8 +36,9 @@ class TranslationService : Service() {
     private var langOther = "auto"
     private var recognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
-    private var callActive = false
-    private var listening  = false
+    private var callActive    = false
+    private var wasOffhook    = false
+    private var listening     = false
     private val mainH = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -45,8 +46,12 @@ class TranslationService : Service() {
     private val phoneListener = object : PhoneStateListener() {
         override fun onCallStateChanged(state: Int, number: String?) {
             when (state) {
-                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true; setSpeaker(true) }
-                TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; setSpeaker(false); stopListen(); stopSelf() }
+                TelephonyManager.CALL_STATE_OFFHOOK -> { wasOffhook = true; setSpeaker(true) }
+                TelephonyManager.CALL_STATE_IDLE    -> {
+                    setSpeaker(false)
+                    // Only stop if a real call ended (not initial IDLE fired on listener register)
+                    if (wasOffhook) { wasOffhook = false; stopListen(); stopSelf() }
+                }
             }
         }
     }
@@ -59,7 +64,7 @@ class TranslationService : Service() {
                 mainH.post { onOriginal?.invoke(text); onStatus?.invoke("✓ Capté") }
                 scope.launch { translateAndSpeak(text) }
             }
-            if (callActive) mainH.postDelayed(::doListen, 500)
+            if (isRunning) mainH.postDelayed(::doListen, 500)
         }
         override fun onError(e: Int) {
             listening = false
@@ -76,7 +81,7 @@ class TranslationService : Service() {
                 else -> "UNKNOWN($e)"
             }
             mainH.post { onStatus?.invoke("❌ $name — relance...") }
-            if (callActive) mainH.postDelayed(::doListen, 1000)
+            if (isRunning) mainH.postDelayed(::doListen, 1000)
         }
         override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
         override fun onBeginningOfSpeech() { mainH.post { onStatus?.invoke("🔊 Parole détectée") } }
@@ -115,7 +120,7 @@ class TranslationService : Service() {
     }
 
     private fun doListen() {
-        if (listening || !callActive) return
+        if (listening) return
         listening = true
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
         val srLang = if (langOther == "auto") "" else SR_LANG[langOther] ?: ""
