@@ -20,11 +20,15 @@ class TranslationService : Service() {
 
     companion object {
         @Volatile var isRunning = false
-        var onOriginal:   ((String) -> Unit)? = null
-        var onTranslated: ((String) -> Unit)? = null
-        var onPartial:    ((String) -> Unit)? = null
-        var onStatus:     ((String) -> Unit)? = null
-        var onRms:        ((Float) -> Unit)?  = null
+        var onOriginal:    ((String) -> Unit)? = null
+        var onTranslated:  ((String) -> Unit)? = null
+        var onPartial:     ((String) -> Unit)? = null
+        var onStatus:      ((String) -> Unit)? = null
+        var onRms:         ((Float) -> Unit)?  = null
+        var onMoiSaid:     ((String) -> Unit)? = null
+        var onMoiTrad:     ((String) -> Unit)? = null
+        var onAutreSaid:   ((String) -> Unit)? = null
+        var onAutreTrad:   ((String) -> Unit)? = null
         private const val NOTIF_ID   = 10
         private const val CHANNEL    = "call_trad"
         const val ACTION_STOP        = "com.calltranslate.STOP_TRAD"
@@ -173,6 +177,7 @@ class TranslationService : Service() {
 
             if (detectedLang == langMoi && langOther != "auto") {
                 // Moi parle → traduit vers langue de l'autre
+                mainH.post { onMoiSaid?.invoke(text); onOriginal?.invoke(text) }
                 val q2 = URLEncoder.encode(text, "UTF-8")
                 val url2 = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=$langMoi&tl=$langOther&dt=t&q=$q2"
                 val conn2 = URL(url2).openConnection() as java.net.HttpURLConnection
@@ -182,13 +187,14 @@ class TranslationService : Service() {
                 val tradToOther = JSONArray(raw2).getJSONArray(0).getJSONArray(0).getString(0)
                 if (tradToOther.isNotBlank()) mainH.post {
                     speak(tradToOther, langOther)
-                    onTranslated?.invoke("→ $tradToOther")
+                    onMoiTrad?.invoke(tradToOther); onTranslated?.invoke("→ $tradToOther")
                 }
             } else {
                 // L'autre parle → traduit vers ma langue
+                mainH.post { onAutreSaid?.invoke(text); onOriginal?.invoke(text) }
                 if (translatedToMoi.isNotBlank()) mainH.post {
                     speak(translatedToMoi, langMoi)
-                    onTranslated?.invoke(translatedToMoi)
+                    onAutreTrad?.invoke(translatedToMoi); onTranslated?.invoke(translatedToMoi)
                 }
             }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }

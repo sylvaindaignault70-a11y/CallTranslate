@@ -45,6 +45,10 @@ class AppelFragment : Fragment() {
     private lateinit var tvStatus: TextView
     private lateinit var tvCallOriginal: TextView
     private lateinit var tvCallResult: TextView
+    private lateinit var tvCallMoiSaid: TextView
+    private lateinit var tvCallMoiTrad: TextView
+    private lateinit var tvCallAutreSaid: TextView
+    private lateinit var tvCallAutreTrad: TextView
     private lateinit var tvAppelDebugLog: TextView
     private lateinit var tvAppelRms: TextView
     private lateinit var pbAppelRms: ProgressBar
@@ -96,9 +100,13 @@ class AppelFragment : Fragment() {
         spinOther      = v.findViewById(R.id.spinCallOther)
         btnTrad        = v.findViewById(R.id.btnCallTrad)
         btnCallRec     = v.findViewById(R.id.btnCallRec)
-        tvStatus       = v.findViewById(R.id.tvCallStatus)
-        tvCallOriginal = v.findViewById(R.id.tvCallOriginal)
-        tvCallResult   = v.findViewById(R.id.tvCallResult)
+        tvStatus         = v.findViewById(R.id.tvCallStatus)
+        tvCallOriginal   = v.findViewById(R.id.tvCallMoiSaid)   // compat: partial results
+        tvCallResult     = v.findViewById(R.id.tvCallAutreTrad) // compat
+        tvCallMoiSaid    = v.findViewById(R.id.tvCallMoiSaid)
+        tvCallMoiTrad    = v.findViewById(R.id.tvCallMoiTrad)
+        tvCallAutreSaid  = v.findViewById(R.id.tvCallAutreSaid)
+        tvCallAutreTrad  = v.findViewById(R.id.tvCallAutreTrad)
 
         spinMoi.adapter = ArrayAdapter(requireContext(),
             android.R.layout.simple_spinner_dropdown_item, LANGS_MOI.map { it.second })
@@ -139,18 +147,28 @@ class AppelFragment : Fragment() {
             if (isAdded) activity?.runOnUiThread { tvStatus.text = status }
         }
         TranslationService.onPartial = { partial ->
-            dbg("〜 PARTIAL: $partial")
-            if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = "... $partial" }
+            if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = "... $partial" }
         }
-        TranslationService.onOriginal = { text ->
-            dbg("🎤 ORIGINAL: $text")
-            if (isAdded) activity?.runOnUiThread { tvCallOriginal.text = text }
+        TranslationService.onMoiSaid = { text ->
+            dbg("🎤 MOI: $text")
+            if (isAdded) activity?.runOnUiThread { tvCallMoiSaid.text = text }
         }
-        TranslationService.onTranslated = { trad ->
-            dbg("🌐 TRAD: $trad")
+        TranslationService.onMoiTrad = { trad ->
+            dbg("→ AUTRE entend: $trad")
             if (isAdded) activity?.runOnUiThread {
-                tvCallResult.text = trad
-                log.append("[${timestamp()}] $trad\n")
+                tvCallMoiTrad.text = trad
+                log.append("[${timestamp()}] MOI→AUTRE: $trad\n")
+            }
+        }
+        TranslationService.onAutreSaid = { text ->
+            dbg("👂 AUTRE: $text")
+            if (isAdded) activity?.runOnUiThread { tvCallAutreSaid.text = text }
+        }
+        TranslationService.onAutreTrad = { trad ->
+            dbg("🌐 MOI comprend: $trad")
+            if (isAdded) activity?.runOnUiThread {
+                tvCallAutreTrad.text = trad
+                log.append("[${timestamp()}] AUTRE→MOI: $trad\n")
             }
         }
 
@@ -421,6 +439,10 @@ class AppelFragment : Fragment() {
         TranslationService.onOriginal   = null
         TranslationService.onTranslated = null
         TranslationService.onRms        = null
+        TranslationService.onMoiSaid    = null
+        TranslationService.onMoiTrad    = null
+        TranslationService.onAutreSaid  = null
+        TranslationService.onAutreTrad  = null
         stopAudioRecording()
         scope.cancel()
     }
