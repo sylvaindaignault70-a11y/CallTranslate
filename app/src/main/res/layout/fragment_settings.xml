@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#080810"
+    android:paddingBottom="160dp"
+    android:clipToPadding="false">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⚙ RÉGLAGES"
+            android:textColor="#7c3aed"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"/>
+
+        <!-- OpenAI -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="🤖 OpenAI Whisper (STT)"
+            android:textColor="#7c3aed"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Clef API — commence par sk-"
+            android:textColor="#64748b"
+            android:textSize="11sp"
+            android:layout_marginBottom="6dp"/>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="8dp">
+
+            <EditText
+                android:id="@+id/etApiKey"
+                android:layout_width="0dp"
+                android:layout_height="44dp"
+                android:layout_weight="1"
+                android:hint="sk-..."
+                android:inputType="textPassword"
+                android:textColor="#e2e8f0"
+                android:textColorHint="#64748b"
+                android:background="#0f0f1a"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:fontFamily="monospace"
+                android:textSize="12sp"
+                android:layout_marginEnd="6dp"/>
+
+            <Button
+                android:id="@+id/btnToggleKey"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:text="👁"
+                android:backgroundTint="#1a1a2e"
+                android:textColor="#94a3b8"
+                android:padding="0dp"/>
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btnSaveSettings"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="💾 Sauvegarder"
+            android:backgroundTint="#7c3aed"
+            android:textColor="#ffffff"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tvSettingsStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#10b981"
+            android:textSize="12sp"
+            android:gravity="center"
+            android:layout_marginBottom="24dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="La clef est stockée localement sur l'appareil.\nCoût Whisper: ~$0.006/min audio."
+            android:textColor="#64748b"
+            android:textSize="11sp"
+            android:layout_marginBottom="16dp"/>
+
+    </LinearLayout>
+</ScrollView>

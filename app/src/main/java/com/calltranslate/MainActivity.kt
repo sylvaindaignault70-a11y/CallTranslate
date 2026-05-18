@@ -37,7 +37,8 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_appel   -> { show(AppelFragment());      true }
                 R.id.nav_trad    -> { show(TraductionFragment()); true }
                 R.id.nav_musique -> { show(MusiqueFragment());    true }
-                R.id.nav_eq      -> { show(EqFragment());         true }
+                R.id.nav_eq       -> { show(EqFragment());        true }
+                R.id.nav_settings -> { show(SettingsFragment()); true }
                 else -> false
             }
         }
