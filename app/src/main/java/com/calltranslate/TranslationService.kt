@@ -28,7 +28,10 @@ class TranslationService : Service() {
         private const val NOTIF_ID   = 10
         private const val CHANNEL    = "call_trad"
         const val ACTION_STOP        = "com.calltranslate.STOP_TRAD"
-        private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
+        private val SR_LANG = mapOf(
+            "fr" to "fr-FR", "en" to "en-US", "es" to "es-ES",
+            "de" to "de-DE", "pt" to "pt-BR", "it" to "it-IT"
+        )
         private val TTS_LOC = mapOf(
             "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"))
     }
@@ -134,12 +137,13 @@ class TranslationService : Service() {
         if (listening || ttsPlaying) return
         listening = true
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
-        val srLang = if (langOther == "auto") "" else SR_LANG[langOther] ?: ""
+        val srLang = if (langOther == "auto") "fr-FR,en-US,es-ES,de-DE,pt-BR,it-IT" else SR_LANG[langOther] ?: ""
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            if (srLang.isNotEmpty()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
+            putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
+            putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", arrayOf<String>())
         }
         recognizer?.startListening(intent)
     }
