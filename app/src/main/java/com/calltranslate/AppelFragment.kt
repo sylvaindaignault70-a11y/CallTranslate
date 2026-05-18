@@ -123,9 +123,10 @@ class AppelFragment : Fragment() {
         }
 
         TranslationService.onRms = { rms ->
+            // SR onRmsChanged returns dB in range ~-2 to +10
             if (isAdded) activity?.runOnUiThread {
-                tvAppelRms.text = "%.1f".format(rms)
-                pbAppelRms.progress = (rms.coerceIn(0f, 32767f) / 32767f * 100).toInt()
+                tvAppelRms.text = "%.1fdB".format(rms)
+                pbAppelRms.progress = ((rms + 2f) * (100f / 12f)).coerceIn(0f, 100f).toInt()
             }
         }
 
