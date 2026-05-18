@@ -25,8 +25,9 @@ class TranslationService : Service() {
         var onPartial:    ((String) -> Unit)? = null
         var onStatus:     ((String) -> Unit)? = null
         var onRms:        ((Float) -> Unit)?  = null
-        private const val NOTIF_ID  = 10
-        private const val CHANNEL   = "call_trad"
+        private const val NOTIF_ID   = 10
+        private const val CHANNEL    = "call_trad"
+        const val ACTION_STOP        = "com.calltranslate.STOP_TRAD"
         private val SR_LANG = mapOf("fr" to "fr-FR", "en" to "en-US", "es" to "es-ES")
         private val TTS_LOC = mapOf(
             "fr" to Locale.FRENCH, "en" to Locale.US, "es" to Locale("es","ES"))
@@ -100,6 +101,7 @@ class TranslationService : Service() {
     override fun onCreate() { super.onCreate(); createChannel() }
 
     override fun onStartCommand(intent: Intent?, flags: Int, id: Int): Int {
+        if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
         langMoi   = intent?.getStringExtra("langMoi")   ?: "fr"
         langOther = intent?.getStringExtra("langOther") ?: "auto"
         try { startForeground(NOTIF_ID, buildNotif()) } catch (e: Exception) { Log.e("TS","notif: ${e.message}") }
@@ -188,11 +190,16 @@ class TranslationService : Service() {
 
     private fun buildNotif(): Notification {
         val pi = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
+        val stopPI = PendingIntent.getService(this, 1,
+            Intent(this, TranslationService::class.java).apply { action = ACTION_STOP },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return NotificationCompat.Builder(this, CHANNEL)
             .setContentTitle("🌐 Traduction Appel ACTIVE")
             .setContentText("MOI: $langMoi | AUTRE: $langOther — mets sur haut-parleur")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentIntent(pi).build()
+            .setContentIntent(pi)
+            .addAction(android.R.drawable.ic_media_pause, "⏹ Arrêter", stopPI)
+            .build()
     }
 
     override fun onDestroy() {
