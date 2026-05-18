@@ -214,9 +214,6 @@ class AppelFragment : Fragment() {
         if (TranslationService.isRunning) {
             dbg("⏹ Arrêt service traduction")
             ctx.stopService(Intent(ctx, TranslationService::class.java))
-            // optimistic: onDestroy est async
-            btnTrad.text = "▶ Démarrer traduction"
-            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF10b981.toInt())
             tvStatus.text = "Arrêté"
             tvStatus.setTextColor(0xFF64748b.toInt())
         } else {
@@ -226,9 +223,6 @@ class AppelFragment : Fragment() {
                 putExtra("langOther", langOther)
             }
             ContextCompat.startForegroundService(ctx, intent)
-            // optimistic: onStartCommand est async
-            btnTrad.text = "⏹ Arrêter traduction"
-            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFef4444.toInt())
             tvStatus.text = "✅ Actif — mets l'appel sur haut-parleur"
             tvStatus.setTextColor(0xFF10b981.toInt())
         }
@@ -236,13 +230,9 @@ class AppelFragment : Fragment() {
 
     private fun updateTradUI() {
         if (TranslationService.isRunning) {
-            btnTrad.text = "⏹ Arrêter traduction"
-            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFFef4444.toInt())
             tvStatus.text = "✅ Actif — mets l'appel sur haut-parleur"
             tvStatus.setTextColor(0xFF10b981.toInt())
         } else {
-            btnTrad.text = "▶ Démarrer traduction"
-            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF10b981.toInt())
             tvStatus.text = "Arrêté"
             tvStatus.setTextColor(0xFF64748b.toInt())
         }
@@ -445,18 +435,13 @@ class AppelFragment : Fragment() {
     }
 
     private fun raccrocherEtVider() {
-        // Stop service
         if (TranslationService.isRunning) {
             val ctx = requireContext()
             ctx.stopService(Intent(ctx, TranslationService::class.java))
-            btnTrad.text = "▶ Démarrer traduction"
-            btnTrad.backgroundTintList = android.content.res.ColorStateList.valueOf(0xFF10b981.toInt())
             tvStatus.text = "Arrêté"
             tvStatus.setTextColor(0xFF64748b.toInt())
         }
-        // Hang up call
         raccrocher()
-        // Clear all
         vider()
     }
 
