@@ -40,6 +40,7 @@ class TranslationService : Service() {
     private var callActive    = false
     private var wasOffhook    = false
     private var listening     = false
+    @Volatile private var ttsPlaying = false
     private val mainH = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -66,7 +67,7 @@ class TranslationService : Service() {
                 scope.launch { translateAndSpeak(text) }
                 // doListen restart handled by TTS UtteranceProgressListener.onDone
             } else {
-                if (isRunning) mainH.postDelayed(::doListen, 500)
+                if (isRunning && !ttsPlaying) mainH.postDelayed(::doListen, 500)
             }
         }
         override fun onError(e: Int) {
@@ -84,7 +85,7 @@ class TranslationService : Service() {
                 else -> "UNKNOWN($e)"
             }
             mainH.post { onStatus?.invoke("❌ $name — relance...") }
-            if (isRunning) mainH.postDelayed(::doListen, 1000)
+            if (isRunning && !ttsPlaying) mainH.postDelayed(::doListen, 1000)
         }
         override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
         override fun onBeginningOfSpeech() { mainH.post { onStatus?.invoke("🔊 Parole détectée") } }
@@ -108,9 +109,9 @@ class TranslationService : Service() {
         tts = TextToSpeech(this) {}
         tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
             override fun onStart(u: String?) {}
-            override fun onDone(u: String?) { if (isRunning) mainH.postDelayed(::doListen, 800) }
+            override fun onDone(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed(::doListen, 800) }
             @Deprecated("Deprecated in Java")
-            override fun onError(u: String?) { if (isRunning) mainH.postDelayed(::doListen, 800) }
+            override fun onError(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed(::doListen, 800) }
         })
         mainH.post {
             try {
@@ -130,7 +131,7 @@ class TranslationService : Service() {
     }
 
     private fun doListen() {
-        if (listening) return
+        if (listening || ttsPlaying) return
         listening = true
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
         val srLang = if (langOther == "auto") "" else SR_LANG[langOther] ?: ""
@@ -167,6 +168,7 @@ class TranslationService : Service() {
     }
 
     private fun speak(text: String) {
+        ttsPlaying = true
         stopListen()  // stop SR so TTS output isn't re-captured
         val locale = TTS_LOC[langMoi] ?: Locale.getDefault()
         tts?.language = locale
