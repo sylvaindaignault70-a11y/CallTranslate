@@ -28,9 +28,9 @@ class AppelFragment : Fragment() {
         val LANGS_MOI   = listOf("fr" to "🇫🇷 Français", "en" to "🇬🇧 Anglais")
         val LANGS_OTHER = listOf(
             "auto" to "🔍 Auto-détect (fr/en/es/de/pt/it)",
-            "fr" to "🇫🇷 Français", "en" to "🇬🇧 Anglais",
-            "es" to "🇪🇸 Espagnol", "de" to "🇩🇪 Allemand",
-            "pt" to "🇵🇹 Portugais", "it" to "🇮🇹 Italien"
+            "de" to "🇩🇪 Allemand", "en" to "🇬🇧 Anglais",
+            "es" to "🇪🇸 Espagnol", "fr" to "🇫🇷 Français",
+            "it" to "🇮🇹 Italien", "pt" to "🇵🇹 Portugais"
         )
         private const val SAMPLE_RATE = 44100
     }
