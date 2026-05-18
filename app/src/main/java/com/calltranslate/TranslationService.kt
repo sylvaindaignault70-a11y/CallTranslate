@@ -59,6 +59,7 @@ class TranslationService : Service() {
     private val recListener = object : RecognitionListener {
         override fun onResults(b: Bundle?) {
             listening = false
+            unmuteBeep()
             val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
             if (!text.isNullOrBlank()) {
                 mainH.post { onOriginal?.invoke(text); onStatus?.invoke("✓ Capté") }
@@ -68,6 +69,7 @@ class TranslationService : Service() {
         }
         override fun onError(e: Int) {
             listening = false
+            unmuteBeep()
             val name = when(e) {
                 SpeechRecognizer.ERROR_AUDIO                  -> "AUDIO(3)=micro bloqué"
                 SpeechRecognizer.ERROR_CLIENT                 -> "CLIENT(5)"
@@ -130,7 +132,22 @@ class TranslationService : Service() {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             if (srLang.isNotEmpty()) putExtra(RecognizerIntent.EXTRA_LANGUAGE, srLang)
         }
+        muteBeep()
         recognizer?.startListening(intent)
+    }
+
+    private fun muteBeep() {
+        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
+            .adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_MUTE, 0) } catch (_: Exception) {}
+        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
+            .adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_MUTE, 0) } catch (_: Exception) {}
+    }
+
+    private fun unmuteBeep() {
+        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
+            .adjustStreamVolume(AudioManager.STREAM_NOTIFICATION, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
+        try { (getSystemService(AUDIO_SERVICE) as AudioManager)
+            .adjustStreamVolume(AudioManager.STREAM_RING, AudioManager.ADJUST_UNMUTE, 0) } catch (_: Exception) {}
     }
 
     private fun setSpeaker(on: Boolean) {
