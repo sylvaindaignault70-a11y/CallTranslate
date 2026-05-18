@@ -36,6 +36,7 @@ class TrackAdapter(
             if (pos == currentIndex) 0xFF1a1a2e.toInt() else 0xFF080810.toInt()
         )
         h.play.setOnClickListener { onPlay(pos) }
+        h.itemView.setOnClickListener { onPlay(pos) }
     }
 
     override fun getItemCount() = tracks.size

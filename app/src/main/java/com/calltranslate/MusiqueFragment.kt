@@ -55,34 +55,10 @@ class MusiqueFragment : Fragment() {
     ) { uri ->
         uri ?: return@registerForActivityResult
         try { requireContext().contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION) } catch (e: Exception) {}
-        val treeDocId = try { android.provider.DocumentsContract.getTreeDocumentId(uri) } catch (e: Exception) { pickFiles.launch(arrayOf("audio/*")); return@registerForActivityResult }
-        val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(uri, treeDocId)
-        val uris = mutableListOf<Uri>()
-        try { requireContext().contentResolver.query(
-            childrenUri,
-            arrayOf(
-                android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-                android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE
-            ),
-            null, null, null
-        ) } catch (e: Exception) { null }?.use { c ->
-            val idCol   = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-            val mimeCol = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
-            while (c.moveToNext()) {
-                val mime = if (mimeCol >= 0) c.getString(mimeCol) else ""
-                if (mime.startsWith("audio/")) {
-                    val docId = if (idCol >= 0) c.getString(idCol) else continue
-                    val childUri = android.provider.DocumentsContract.buildDocumentUriUsingTree(uri, docId)
-                    uris.add(childUri)
-                }
-            }
-        }
-        if (uris.isEmpty()) {
-            // fallback: open files picker
-            pickFiles.launch(arrayOf("audio/*"))
-        } else {
-            loadUris(uris)
-        }
+        requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+            .edit().putString("folderUri", uri.toString()).remove("uris").apply()
+        val loaded = loadFromFolderUri(uri, autoPlay = true)
+        if (!loaded) pickFiles.launch(arrayOf("audio/*"))
     }
 
     override fun onCreateView(inflater: LayoutInflater, c: ViewGroup?, s: Bundle?): View =
@@ -147,6 +123,8 @@ class MusiqueFragment : Fragment() {
         showPlayerBar()
         btnPlay.text = "⏸"
         tvStatus.text = "${MusicPlayer.playlist.size} pistes"
+        requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+            .edit().putInt("lastIndex", idx).apply()
     }
 
     private fun showPlayerBar() {
@@ -156,7 +134,7 @@ class MusiqueFragment : Fragment() {
         btnPlay.text = if (MusicPlayer.isPlaying) "⏸" else "▶"
     }
 
-    private fun loadUris(uris: List<Uri>) {
+    private fun loadUris(uris: List<Uri>, autoPlay: Boolean = true) {
         val ctx = requireContext()
         val tracks = uris.mapNotNull { uri ->
             val name = ctx.contentResolver.query(uri, null, null, null, null)?.use { c ->
@@ -169,21 +147,51 @@ class MusiqueFragment : Fragment() {
         MusicPlayer.playlist.addAll(tracks)
         adapter.setTracks(tracks)
         tvStatus.text = "${tracks.size} pistes"
-        savePlaylist(uris)
-        if (tracks.isNotEmpty()) play(0)
+        if (tracks.isNotEmpty()) {
+            if (autoPlay) play(0) else {
+                val saved = requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+                    .getInt("lastIndex", 0).coerceIn(0, tracks.size - 1)
+                MusicPlayer.currentIndex = saved
+                adapter.setCurrentIndex(saved)
+                showPlayerBar()
+            }
+        }
     }
 
-    private fun savePlaylist(uris: List<Uri>) {
-        requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
-            .edit().putString("uris", uris.joinToString("|") { it.toString() }).apply()
+    private fun loadFromFolderUri(uri: Uri, autoPlay: Boolean): Boolean {
+        val treeDocId = try { android.provider.DocumentsContract.getTreeDocumentId(uri) } catch (e: Exception) { return false }
+        val childrenUri = android.provider.DocumentsContract.buildChildDocumentsUriUsingTree(uri, treeDocId)
+        val uris = mutableListOf<Uri>()
+        try { requireContext().contentResolver.query(childrenUri,
+            arrayOf(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE),
+            null, null, null) } catch (e: Exception) { null }?.use { c ->
+            val idCol   = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+            val mimeCol = c.getColumnIndex(android.provider.DocumentsContract.Document.COLUMN_MIME_TYPE)
+            while (c.moveToNext()) {
+                val mime = if (mimeCol >= 0) c.getString(mimeCol) else ""
+                if (mime.startsWith("audio/")) {
+                    val docId = if (idCol >= 0) c.getString(idCol) else continue
+                    uris.add(android.provider.DocumentsContract.buildDocumentUriUsingTree(uri, docId))
+                }
+            }
+        }
+        if (uris.isEmpty()) return false
+        loadUris(uris, autoPlay)
+        return true
     }
 
     private fun restorePlaylist() {
-        val saved = requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
-            .getString("uris", null) ?: return
+        val prefs = requireContext().getSharedPreferences("music", android.content.Context.MODE_PRIVATE)
+        val folderUriStr = prefs.getString("folderUri", null)
+        if (folderUriStr != null) {
+            loadFromFolderUri(Uri.parse(folderUriStr), autoPlay = false)
+            return
+        }
+        val saved = prefs.getString("uris", null) ?: return
         val uris = saved.split("|").filter { it.isNotEmpty() }.map { Uri.parse(it) }
         if (uris.isEmpty()) return
-        loadUris(uris)
+        loadUris(uris, autoPlay = false)
     }
 
     private fun fmtTime(ms: Int): String {
