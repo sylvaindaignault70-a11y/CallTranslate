@@ -52,6 +52,8 @@ class TranslationService : Service() {
     private var wasOffhook    = false
     private var listening     = false
     @Volatile private var ttsPlaying = false
+    @Volatile private var noMatchRetried = false
+    private var listenedInOtherLang = false
     private val mainH = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -73,11 +75,12 @@ class TranslationService : Service() {
             listening = false
             val text = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
             if (!text.isNullOrBlank()) {
+                noMatchRetried = false
+                if (listenedInOtherLang && forceDirection == null) forceDirection = false
                 mainH.post { onOriginal?.invoke(text); onStatus?.invoke("✓ Capté") }
                 scope.launch { translateAndSpeak(text) }
-                // doListen restart handled by TTS UtteranceProgressListener.onDone
             } else {
-                if (isRunning && !ttsPlaying) mainH.postDelayed(::doListen, 500)
+                if (isRunning && !ttsPlaying) mainH.postDelayed({ doListen() }, 500)
             }
         }
         override fun onError(e: Int) {
@@ -95,7 +98,13 @@ class TranslationService : Service() {
                 else -> "UNKNOWN($e)"
             }
             mainH.post { onStatus?.invoke("❌ $name — relance...") }
-            if (isRunning && !ttsPlaying) mainH.postDelayed(::doListen, 1000)
+            if (e == SpeechRecognizer.ERROR_NO_MATCH && forceDirection == null && !noMatchRetried && langOther != "auto") {
+                noMatchRetried = true
+                mainH.postDelayed({ doListen(otherLang = true) }, 300)
+            } else {
+                noMatchRetried = false
+                if (isRunning && !ttsPlaying) mainH.postDelayed({ doListen() }, 1000)
+            }
         }
         override fun onReadyForSpeech(p: Bundle?) { mainH.post { onStatus?.invoke("🟢 SR prêt") } }
         override fun onBeginningOfSpeech() { mainH.post { onStatus?.invoke("🔊 Parole détectée") } }
@@ -119,9 +128,9 @@ class TranslationService : Service() {
         tts = TextToSpeech(this) {}
         tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
             override fun onStart(u: String?) {}
-            override fun onDone(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed(::doListen, 800) }
+            override fun onDone(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed({ doListen() }, 800) }
             @Deprecated("Deprecated in Java")
-            override fun onError(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed(::doListen, 800) }
+            override fun onError(u: String?) { ttsPlaying = false; if (isRunning) mainH.postDelayed({ doListen() }, 800) }
         })
         mainH.post {
             try {
@@ -135,21 +144,23 @@ class TranslationService : Service() {
         // Start listening immediately — don't wait for PhoneStateListener (deprecated on API 31+)
         callActive = true
         if (tm.callState == TelephonyManager.CALL_STATE_OFFHOOK) setSpeaker(true)
-        mainH.postDelayed(::doListen, 1500)
+        mainH.postDelayed({ doListen() }, 1500)
         isRunning = true
         return START_STICKY
     }
 
-    private fun doListen() {
+    private fun doListen(otherLang: Boolean = false) {
         if (listening || ttsPlaying) return
         listening = true
+        listenedInOtherLang = otherLang
         mainH.post { onStatus?.invoke("🎤 Écoute...") }
         val moiLang   = SR_LANG[langMoi] ?: "fr-FR"
         val autreLang = if (langOther == "auto") "en-US" else SR_LANG[langOther] ?: "en-US"
-        val srLang = when (forceDirection) {
-            true  -> moiLang   // MOI appuie → écoute en langMoi
-            false -> autreLang // AUTRE appuie → écoute en langOther
-            null  -> moiLang   // auto: écoute langMoi par défaut
+        val srLang = when {
+            forceDirection == true  -> moiLang
+            forceDirection == false -> autreLang
+            otherLang -> autreLang   // auto-retry en langue de l'autre après NO_MATCH
+            else -> moiLang
         }
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -220,7 +231,7 @@ class TranslationService : Service() {
             } else {
                 // Même texte = boucle ou langue identique, ignorer
                 mainH.post { onStatus?.invoke("⚠ ignoré (même langue ou boucle)") }
-                if (isRunning) mainH.postDelayed(::doListen, 500)
+                if (isRunning) mainH.postDelayed({ doListen() }, 500)
             }
         } catch (e: Exception) { Log.e("TS", e.message ?: "") }
     }
