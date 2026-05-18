@@ -45,7 +45,7 @@ class TranslationService : Service() {
     private val phoneListener = object : PhoneStateListener() {
         override fun onCallStateChanged(state: Int, number: String?) {
             when (state) {
-                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true;  setSpeaker(true);  mainH.postDelayed(::doListen, 1500) }
+                TelephonyManager.CALL_STATE_OFFHOOK -> { callActive = true; setSpeaker(true) }
                 TelephonyManager.CALL_STATE_IDLE    -> { callActive = false; setSpeaker(false); stopListen(); stopSelf() }
             }
         }
@@ -94,12 +94,10 @@ class TranslationService : Service() {
         val tm = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
         @Suppress("DEPRECATION")
         tm.listen(phoneListener, PhoneStateListener.LISTEN_CALL_STATE)
-        // If call already active when service starts, phoneListener won't fire
-        if (tm.callState == TelephonyManager.CALL_STATE_OFFHOOK) {
-            callActive = true
-            setSpeaker(true)
-            mainH.postDelayed(::doListen, 1500)
-        }
+        // Start listening immediately — don't wait for PhoneStateListener (deprecated on API 31+)
+        callActive = true
+        if (tm.callState == TelephonyManager.CALL_STATE_OFFHOOK) setSpeaker(true)
+        mainH.postDelayed(::doListen, 1500)
         isRunning = true
         return START_STICKY
     }

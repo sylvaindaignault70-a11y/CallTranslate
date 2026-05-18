@@ -4,12 +4,15 @@ import android.Manifest
 import android.app.AlertDialog
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.ContentValues
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.provider.ContactsContract
+import android.provider.MediaStore
 import android.view.*
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,6 +45,7 @@ class AppelFragment : Fragment() {
     private lateinit var tvCallResult: TextView
     private lateinit var tvAppelDebugLog: TextView
     private lateinit var tvAppelRms: TextView
+    private lateinit var pbAppelRms: ProgressBar
     private lateinit var scrollAppelDebug: android.widget.ScrollView
     private val appelDebugLog = StringBuilder()
 
@@ -56,6 +60,10 @@ class AppelFragment : Fragment() {
     private val requestCallPerm = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted -> if (granted) signaler() }
+
+    private val requestEndCallPerm = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> if (granted) raccrocher() }
 
     private var audioRecord: AudioRecord? = null
     private var isRecording = false
@@ -108,13 +116,17 @@ class AppelFragment : Fragment() {
 
         tvAppelDebugLog = v.findViewById(R.id.tvAppelDebugLog)
         tvAppelRms = v.findViewById(R.id.tvAppelRms)
+        pbAppelRms = v.findViewById(R.id.pbAppelRms)
         scrollAppelDebug = v.findViewById(R.id.scrollAppelDebug)
         v.findViewById<Button>(R.id.btnAppelDebugClear).setOnClickListener {
             appelDebugLog.clear(); tvAppelDebugLog.text = ""
         }
 
         TranslationService.onRms = { rms ->
-            if (isAdded) activity?.runOnUiThread { tvAppelRms.text = "%.1f".format(rms) }
+            if (isAdded) activity?.runOnUiThread {
+                tvAppelRms.text = "%.1f".format(rms)
+                pbAppelRms.progress = (rms.coerceIn(0f, 32767f) / 32767f * 100).toInt()
+            }
         }
 
         dbg("🐛 Appel V2 prêt — ouvre avant d'appeler")
@@ -184,14 +196,7 @@ class AppelFragment : Fragment() {
         if (isRecording) {
             stopAudioRecording()
             btnCallRec.text = "⏺ Rec"
-            if (pcmChunks.isNotEmpty()) {
-                val ts = timestamp()
-                AlertDialog.Builder(requireContext())
-                    .setTitle("💾 Sauvegarder audio")
-                    .setPositiveButton("🎙 .wav") { _, _ -> saveWavLauncher.launch("Rec_$ts.wav") }
-                    .setNegativeButton("Annuler", null)
-                    .show()
-            }
+            saveWavDirect()
         } else {
             startAudioRecording()
             btnCallRec.text = "⏹ Stop Rec"
@@ -201,15 +206,27 @@ class AppelFragment : Fragment() {
     private fun startAudioRecording() {
         if (isRecording) return
         if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO)
-            != PackageManager.PERMISSION_GRANTED) return
+            != PackageManager.PERMISSION_GRANTED) { dbg("⚠ Rec: permission RECORD_AUDIO manquante"); return }
         val bufSize = AudioRecord.getMinBufferSize(SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT)
         audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+            MediaRecorder.AudioSource.VOICE_COMMUNICATION, SAMPLE_RATE,
             AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize
         )
+        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+            dbg("⚠ Rec: AudioRecord non initialisé (source bloquée?) — essai MIC")
+            audioRecord?.release()
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC, SAMPLE_RATE,
+                AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, bufSize
+            )
+        }
+        if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
+            dbg("⚠ Rec: MIC aussi bloqué — abandon"); audioRecord?.release(); audioRecord = null; return
+        }
         pcmChunks.clear()
         audioRecord?.startRecording()
         isRecording = true
+        dbg("🔴 Rec démarré (${SAMPLE_RATE}Hz)")
         Thread {
             val buf = ByteArray(bufSize)
             while (isRecording) {
@@ -226,15 +243,37 @@ class AppelFragment : Fragment() {
         audioRecord = null
     }
 
-    private fun saveWav(uri: Uri) {
+    private fun saveWavDirect() {
+        val count = synchronized(pcmChunks) { pcmChunks.size }
+        dbg("💾 Rec stop: $count chunks")
+        if (count == 0) { tvStatus.text = "⚠ Rien enregistré (MIC bloqué?)"; return }
+        val ts = timestamp()
         scope.launch {
             try {
                 val pcm = synchronized(pcmChunks) { pcmChunks.flatMap { it.toList() }.toByteArray() }
+                dbg("💾 PCM: ${pcm.size} bytes → WAV")
                 val wav = pcmToWav(pcm)
-                requireContext().contentResolver.openOutputStream(uri)?.use { it.write(wav) }
-                requireActivity().runOnUiThread { tvStatus.text = "✓ Audio sauvegardé" }
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, "Rec_$ts.wav")
+                    put(MediaStore.Downloads.MIME_TYPE, "audio/wav")
+                    put(MediaStore.Downloads.RELATIVE_PATH,
+                        "${Environment.DIRECTORY_DOWNLOADS}/Application/Ecouteur/Message")
+                }
+                val uri = requireContext().contentResolver.insert(
+                    MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                if (uri != null) {
+                    requireContext().contentResolver.openOutputStream(uri)?.use { it.write(wav) }
+                    if (isAdded) requireActivity().runOnUiThread {
+                        tvStatus.text = "✓ Rec_$ts.wav → Downloads/Application/Ecouteur/Message"
+                    }
+                    dbg("✓ WAV sauvegardé: Rec_$ts.wav")
+                } else {
+                    if (isAdded) requireActivity().runOnUiThread { tvStatus.text = "⚠ Erreur MediaStore" }
+                    dbg("⚠ MediaStore insert = null")
+                }
             } catch (e: Exception) {
-                requireActivity().runOnUiThread { tvStatus.text = "⚠ Erreur audio" }
+                if (isAdded) requireActivity().runOnUiThread { tvStatus.text = "⚠ ${e.message}" }
+                dbg("⚠ saveWav: ${e.message}")
             }
         }
     }
@@ -324,13 +363,18 @@ class AppelFragment : Fragment() {
     }
 
     private fun raccrocher() {
-        try {
-            val tm = requireContext().getSystemService(android.telecom.TelecomManager::class.java)
-            if (android.os.Build.VERSION.SDK_INT >= 28 &&
-                requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                tm?.endCall()
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            if (requireContext().checkSelfPermission(android.Manifest.permission.ANSWER_PHONE_CALLS)
+                != PackageManager.PERMISSION_GRANTED) {
+                requestEndCallPerm.launch(android.Manifest.permission.ANSWER_PHONE_CALLS)
+                return
             }
-        } catch (e: Exception) { }
+            try {
+                val tm = requireContext().getSystemService(android.telecom.TelecomManager::class.java)
+                tm?.endCall()
+                dbg("📵 endCall() envoyé")
+            } catch (e: Exception) { dbg("⚠ Raccrocher: ${e.message}") }
+        }
     }
 
     private fun timestamp() = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.getDefault()).format(Date())
@@ -341,6 +385,7 @@ class AppelFragment : Fragment() {
         TranslationService.onPartial    = null
         TranslationService.onOriginal   = null
         TranslationService.onTranslated = null
+        TranslationService.onRms        = null
         stopAudioRecording()
         scope.cancel()
     }

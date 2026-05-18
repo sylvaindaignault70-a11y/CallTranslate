@@ -163,6 +163,15 @@
                 android:textSize="10sp" android:paddingStart="10dp" android:paddingEnd="10dp"/>
         </LinearLayout>
 
+        <ProgressBar android:id="@+id/pbAppelRms"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:max="100"
+            android:progress="0"
+            android:progressTint="#f59e0b"
+            android:layout_marginBottom="4dp"/>
+
         <ScrollView android:id="@+id/scrollAppelDebug"
             android:layout_width="match_parent" android:layout_height="200dp"
             android:background="#0f0f1a" android:padding="8dp">
